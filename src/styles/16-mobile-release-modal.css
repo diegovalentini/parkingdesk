@@ -1,0 +1,108 @@
+/* =========================================================
+   MOBILE RELEASE MODAL COMPACT
+   Hace más compacto el modal de liberar plaza en celular
+   ========================================================= */
+
+@media (max-width: 600px) {
+  .modal__panel {
+    max-height: calc(100dvh - 18px);
+    margin: 8px auto;
+    padding: 16px;
+    overflow-y: auto;
+  }
+
+  .detail-list {
+    gap: 4px;
+    margin-top: 6px;
+  }
+
+  .detail-row {
+    padding: 7px 0;
+  }
+
+  .detail-row span:first-child {
+    font-size: 14px;
+  }
+
+  .detail-row strong {
+    font-size: 15px;
+  }
+
+  .form-grid {
+    gap: 9px;
+  }
+
+  .form-field {
+    gap: 5px;
+  }
+
+  .form-field span {
+    font-size: 13px;
+  }
+
+  .form-field input,
+  .form-field select,
+  .form-field textarea {
+    min-height: 44px;
+    padding: 10px 12px;
+  }
+
+  .payment-options {
+    gap: 8px;
+  }
+
+  .payment-option {
+    min-height: 44px;
+    padding: 9px 12px;
+  }
+
+  .modal-actions {
+    gap: 8px;
+    margin-top: 10px;
+  }
+
+  .modal-actions .ghost-btn,
+  .modal-actions .primary-btn,
+  .modal-actions .danger-btn,
+  .modal-actions .secondary-btn {
+    min-height: 42px;
+    padding: 9px 12px;
+    border-radius: 14px;
+  }
+
+  .modal-actions .danger-btn {
+    min-height: 46px;
+  }
+}
+
+@media (max-width: 390px) {
+  .modal__panel {
+    padding: 14px;
+  }
+
+  .modal-title h3 {
+    font-size: 23px;
+  }
+
+  .detail-row {
+    padding: 6px 0;
+  }
+
+  .form-field input,
+  .form-field select,
+  .form-field textarea {
+    min-height: 42px;
+  }
+
+  .payment-option {
+    min-height: 42px;
+  }
+
+  .modal-actions .ghost-btn,
+  .modal-actions .primary-btn,
+  .modal-actions .danger-btn,
+  .modal-actions .secondary-btn {
+    min-height: 40px;
+  }
+}
+

@@ -1,0 +1,244 @@
+/* Admin */
+.admin-layout {
+  display: grid;
+  gap: 18px;
+}
+
+.admin-hero {
+  margin-bottom: 0;
+}
+
+.admin-card,
+.history-card,
+.history-toolbar {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 20px;
+  box-shadow: var(--shadow);
+}
+
+.admin-card {
+  padding: 20px;
+}
+
+.admin-card h3,
+.history-card h3 {
+  margin: 0 0 6px;
+  font-size: 20px;
+}
+
+.section-head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 14px;
+  margin-bottom: 16px;
+}
+
+.cash-grid {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 12px;
+}
+
+.cash-card {
+  padding: 17px;
+  border-radius: 18px;
+  background: var(--surface-2);
+  border: 1px solid var(--border);
+}
+
+.cash-card span {
+  display: block;
+  color: var(--muted);
+  font-size: 12px;
+  font-weight: 800;
+  text-transform: uppercase;
+  letter-spacing: .04em;
+  margin-bottom: 7px;
+}
+
+.cash-card strong {
+  font-size: clamp(22px, 3vw, 30px);
+}
+
+.cash-card--cash {
+  background: var(--free-bg);
+  border-color: color-mix(in srgb, var(--free) 35%, var(--border));
+}
+
+.cash-card--mp {
+  background: color-mix(in srgb, var(--primary) 13%, var(--surface));
+  border-color: color-mix(in srgb, var(--primary) 35%, var(--border));
+}
+
+.cash-card--total {
+  background: color-mix(in srgb, var(--occupied) 14%, var(--surface));
+  border-color: color-mix(in srgb, var(--occupied) 38%, var(--border));
+}
+
+.admin-grid {
+  display: grid;
+  gap: 18px;
+}
+
+.admin-grid--balanced {
+  grid-template-columns: minmax(0, 0.95fr) minmax(0, 1.25fr);
+}
+
+.admin-grid--wide-left {
+  grid-template-columns: minmax(0, 1.45fr) minmax(290px, .7fr);
+}
+
+.config-form,
+.blacklist-form {
+  display: grid;
+  gap: 13px;
+}
+
+.blacklist-form {
+  grid-template-columns: 1fr 1fr;
+}
+
+.form-field--full,
+.blacklist-form .primary-btn {
+  grid-column: 1 / -1;
+}
+
+.demo-note {
+  margin-top: 14px;
+  padding: 12px;
+  color: var(--muted);
+  background: var(--surface-2);
+  border: 1px solid var(--border);
+  border-radius: 14px;
+  font-size: 12px;
+}
+
+.users-table,
+.blacklist-table {
+  display: grid;
+  gap: 10px;
+}
+
+.user-row {
+  display: grid;
+  grid-template-columns: minmax(180px, 1fr) auto auto minmax(130px, 160px);
+  align-items: center;
+  gap: 12px;
+  padding: 12px;
+  background: var(--surface-2);
+  border: 1px solid var(--border);
+  border-radius: 16px;
+}
+
+.user-row__info {
+  display: grid;
+  gap: 2px;
+  min-width: 0;
+}
+
+.user-row__info strong,
+.user-row__info span {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.user-row__info span {
+  color: var(--muted);
+  font-size: 12px;
+}
+
+.role-pill,
+.blacklist-status,
+.history-method {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: fit-content;
+  border-radius: 999px;
+  padding: 7px 10px;
+  font-size: 11px;
+  font-weight: 900;
+  text-transform: uppercase;
+}
+
+.role-pill--admin {
+  color: #1f5eff;
+  background: color-mix(in srgb, var(--primary) 16%, var(--surface));
+  border: 1px solid color-mix(in srgb, var(--primary) 35%, var(--border));
+}
+
+.role-pill--user {
+  color: var(--free);
+  background: var(--free-bg);
+  border: 1px solid color-mix(in srgb, var(--free) 35%, var(--border));
+}
+
+.role-select {
+  width: 100%;
+  padding: 10px 12px;
+  color: var(--text);
+  background: var(--bg);
+  border: 1px solid var(--border);
+  border-radius: 13px;
+}
+
+.blacklist-card {
+  overflow: hidden;
+}
+
+.blacklist-row {
+  display: grid;
+  gap: 8px;
+  padding: 15px;
+  background: var(--surface-2);
+  border: 1px solid var(--border);
+  border-radius: 18px;
+}
+
+.blacklist-row.is-inactive {
+  opacity: .68;
+}
+
+.blacklist-row__main {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.blacklist-plate {
+  font-size: 18px;
+  font-weight: 900;
+  letter-spacing: .03em;
+}
+
+.blacklist-row p {
+  margin: 0;
+}
+
+.blacklist-status--on {
+  color: #fff;
+  background: var(--blocked);
+}
+
+.blacklist-status--off {
+  color: var(--muted);
+  background: var(--bg);
+  border: 1px solid var(--border);
+}
+
+.report-actions {
+  display: grid;
+  gap: 10px;
+}
+
+.report-actions button:disabled,
+.secondary-btn:disabled {
+  cursor: not-allowed;
+  opacity: .55;
+  transform: none;
+}
+

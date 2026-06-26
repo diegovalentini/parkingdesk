@@ -1,0 +1,96 @@
+/* Navegación y elementos compartidos */
+.topbar__actions {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  flex-wrap: wrap;
+  gap: 10px;
+}
+
+.ghost-link,
+.primary-link {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 42px;
+  padding: 10px 14px;
+  border-radius: 14px;
+  font-size: 14px;
+  font-weight: 700;
+  text-decoration: none;
+}
+
+.ghost-link {
+  color: var(--text);
+  background: var(--surface-2);
+  border: 1px solid var(--border);
+}
+
+.primary-link {
+  color: #fff;
+  background: var(--primary);
+}
+
+.user-badge {
+  padding: 9px 12px;
+  border-radius: 999px;
+  color: var(--primary);
+  background: var(--surface-2);
+  border: 1px solid var(--border);
+  font-size: 12px;
+  font-weight: 800;
+  text-transform: uppercase;
+}
+
+.is-hidden {
+  display: none !important;
+}
+
+.small-text {
+  font-size: 12px;
+}
+
+.empty-state {
+  padding: 18px;
+  color: var(--muted);
+  background: var(--surface-2);
+  border: 1px dashed var(--border);
+  border-radius: 16px;
+}
+
+textarea {
+  width: 100%;
+  padding: 13px 14px;
+  color: var(--text);
+  background: var(--bg);
+  border: 1px solid var(--border);
+  border-radius: 14px;
+  outline: none;
+  resize: vertical;
+  font: inherit;
+}
+
+.form-field textarea:focus,
+.form-field input:focus,
+.form-field select:focus {
+  border-color: var(--primary);
+}
+
+.secondary-btn--small,
+.danger-btn--small {
+  padding: 8px 11px;
+  border-radius: 12px;
+  font-size: 12px;
+  font-weight: 700;
+}
+
+.inline-actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.inline-actions--wrap {
+  flex-wrap: wrap;
+}
+

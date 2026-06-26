@@ -1,0 +1,35 @@
+/* =========================================================
+   FIX LOGIN DARK MODE
+   Fondo correcto para login en modo oscuro
+   ========================================================= */
+
+body.dark:has(.auth-layout) {
+  background:
+    radial-gradient(circle at top left, rgba(122, 162, 255, 0.16), transparent 34%),
+    linear-gradient(135deg, #0f1724 0%, #151f32 100%);
+}
+
+body.dark .auth-card {
+  background: var(--surface);
+  border-color: var(--border);
+}
+
+body.dark .auth-tab:not(.is-active) {
+  background: var(--surface-2);
+  color: var(--text);
+  border-color: var(--border);
+}
+
+body.dark .form-field input,
+body.dark .form-field select,
+body.dark .form-field textarea {
+  background: #0f1724;
+  color: var(--text);
+  border-color: var(--border);
+}
+
+body.dark .form-field input::placeholder,
+body.dark .form-field textarea::placeholder {
+  color: #7f8ba3;
+}
+

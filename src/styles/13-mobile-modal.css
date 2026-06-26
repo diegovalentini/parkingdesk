@@ -1,0 +1,79 @@
+/* =========================================================
+   FIX MOBILE MODAL / IPHONE ZOOM
+   ========================================================= */
+
+@media (max-width: 600px) {
+  .modal__panel {
+    width: calc(100% - 20px);
+    max-width: 420px;
+    max-height: calc(100vh - 24px);
+    margin: 12px auto;
+    padding: 18px;
+    border-radius: 20px;
+    overflow-y: auto;
+  }
+
+  .modal-title {
+    margin-bottom: 12px;
+    padding-right: 34px;
+  }
+
+  .modal-title h3 {
+    font-size: 28px;
+    line-height: 1.1;
+  }
+
+  .form-grid {
+    gap: 11px;
+  }
+
+  .form-field {
+    gap: 6px;
+    font-size: 13px;
+  }
+
+  .form-field input,
+  .form-field select,
+  .form-field textarea,
+  .search-box input {
+    min-height: 48px;
+    padding: 12px 13px;
+    font-size: 16px; /* evita zoom automático en iPhone */
+    border-radius: 14px;
+  }
+
+  .modal-actions {
+    gap: 8px;
+    margin-top: 14px;
+  }
+
+  .modal-actions .primary-btn,
+  .modal-actions .secondary-btn,
+  .modal-actions .danger-btn,
+  .modal-actions .ghost-btn {
+    flex: 1 1 auto;
+    min-height: 46px;
+    padding: 10px 12px;
+    font-size: 14px;
+  }
+}
+
+@media (max-width: 390px) {
+  .modal__panel {
+    width: calc(100% - 14px);
+    padding: 16px;
+  }
+
+  .modal-title h3 {
+    font-size: 25px;
+  }
+
+  .modal-actions {
+    flex-direction: column;
+  }
+
+  .modal-actions button {
+    width: 100%;
+  }
+}
+

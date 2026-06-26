@@ -1,0 +1,103 @@
+rules_version = '2';
+
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    function signedIn() {
+      return request.auth != null;
+    }
+
+    function userDocExists() {
+      return signedIn()
+        && exists(/databases/$(database)/documents/users/$(request.auth.uid));
+    }
+
+    function myUserDoc() {
+      return get(/databases/$(database)/documents/users/$(request.auth.uid));
+    }
+
+    function isActiveUser() {
+      return userDocExists()
+        && myUserDoc().data.active != false;
+    }
+
+    function role() {
+      return isActiveUser() ? myUserDoc().data.role : null;
+    }
+
+    function isViewer() {
+      return isActiveUser() && role() == 'viewer';
+    }
+
+    function isUser() {
+      return isActiveUser() && role() == 'user';
+    }
+
+    function isAdmin() {
+      return isActiveUser() && role() == 'admin';
+    }
+
+    function canUseApp() {
+      return isViewer() || isUser() || isAdmin();
+    }
+
+    function canOperate() {
+      return isUser() || isAdmin();
+    }
+
+    match /users/{userId} {
+      allow read: if isAdmin() || (signedIn() && request.auth.uid == userId);
+      allow create: if signedIn() && request.auth.uid == userId;
+      allow update: if isAdmin()
+        || (
+          signedIn()
+          && request.auth.uid == userId
+          && !request.resource.data.diff(resource.data).changedKeys().hasAny(['role'])
+        );
+      allow delete: if false;
+    }
+
+    match /settings/{docId} {
+      allow read: if canUseApp();
+      allow create, update, delete: if isAdmin();
+    }
+
+    match /blacklist/{plateId} {
+      allow read: if isActiveUser();
+      allow create, update, delete: if isAdmin();
+    }
+
+    match /spots/{spotId} {
+      allow read: if canUseApp();
+      allow create, delete: if isAdmin();
+      allow update: if canOperate();
+    }
+
+    match /logs/{logId} {
+      allow read: if canOperate();
+      allow create: if canOperate();
+
+      allow update: if isAdmin()
+        || (
+          isUser()
+          && request.resource.data.diff(resource.data).changedKeys().hasOnly([
+            'payMethod',
+            'updatedAt',
+            'editedMethodBy',
+            'editedMethodByUid',
+            'editedMethodAt'
+          ])
+        );
+
+      allow delete: if isAdmin();
+    }
+
+    match /daily_logs/{dateId}/{document=**} {
+      allow read, write: if false;
+    }
+
+    match /{document=**} {
+      allow read, write: if false;
+    }
+  }
+}

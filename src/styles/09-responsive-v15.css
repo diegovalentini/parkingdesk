@@ -1,0 +1,189 @@
+/* v15.5: ajustes responsive sin tocar lógica */
+@media (max-width: 780px) {
+  .layout {
+    width: min(100% - 24px, 560px);
+    margin: 16px auto 34px;
+  }
+
+  .topbar {
+    align-items: center;
+    justify-content: center;
+    gap: 12px;
+    padding: 14px 12px;
+  }
+
+  .topbar__brand {
+    width: 100%;
+    justify-content: center;
+    text-align: center;
+  }
+
+  .topbar__brand h1 {
+    max-width: 100%;
+    font-size: 18px;
+    line-height: 1.15;
+  }
+
+  .topbar__actions {
+    width: min(100%, 420px);
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 9px;
+    justify-content: center;
+  }
+
+  .topbar__actions > * {
+    width: 100%;
+    min-width: 0;
+  }
+
+  .topbar__actions .icon-btn {
+    width: 100%;
+    height: 44px;
+  }
+
+  .user-badge,
+  .ghost-link,
+  .secondary-btn,
+  .primary-link {
+    min-height: 42px;
+    padding: 9px 10px;
+    text-align: center;
+    white-space: nowrap;
+  }
+
+  .hero-card,
+  .toolbar,
+  .admin-card,
+  .history-card,
+  .history-toolbar,
+  .auth-card {
+    border-radius: 18px;
+  }
+
+  .hero-card {
+    margin-bottom: 10px;
+    padding: 18px;
+  }
+
+  .toolbar {
+    gap: 14px;
+    padding: 16px;
+  }
+
+  .search-box {
+    max-width: none;
+    width: 100%;
+  }
+
+  .legend {
+    justify-content: center;
+    width: 100%;
+  }
+
+  .spots-grid {
+    grid-template-columns: repeat(auto-fit, minmax(136px, 1fr));
+    gap: 10px;
+    justify-content: center;
+  }
+
+  .spot-card {
+    width: 100%;
+    height: 136px;
+    min-height: 136px;
+    padding: 13px;
+  }
+
+  .spot-card__id {
+    font-size: 19px;
+  }
+
+  .spot-card__plate {
+    font-size: 14px;
+    line-height: 1.15;
+  }
+
+  .spot-card__meta {
+    font-size: 11px;
+  }
+
+  .spot-card__badge {
+    padding: 4px 7px;
+    font-size: 10px;
+  }
+}
+
+@media (max-width: 520px) {
+  .auth-page {
+    align-items: start;
+    place-items: start center;
+    padding: 14px 12px;
+  }
+
+  .auth-card {
+    padding: 18px;
+  }
+
+  .auth-card__head {
+    margin-bottom: 18px;
+  }
+
+  .auth-tabs {
+    gap: 8px;
+    margin: 18px 0;
+  }
+
+  .auth-tab,
+  .primary-btn,
+  .secondary-btn,
+  .ghost-btn,
+  .danger-btn {
+    min-height: 44px;
+  }
+
+  .page-title,
+  .admin-title {
+    text-align: left;
+  }
+
+  .section-head {
+    align-items: stretch;
+    flex-direction: column;
+  }
+
+  .blacklist-form,
+  .monthly-range-form {
+    grid-template-columns: 1fr;
+  }
+
+  .calendar-head {
+    grid-template-columns: 44px 1fr 44px;
+    gap: 8px;
+  }
+
+  .calendar-head h3 {
+    text-align: center;
+    font-size: 16px;
+  }
+
+  .calendar-weekdays span {
+    font-size: 10px;
+  }
+
+  .modal__panel {
+    width: min(100% - 20px, 520px);
+    margin-top: 18px;
+    padding: 18px;
+  }
+}
+
+@media (max-width: 380px) {
+  .topbar__actions {
+    grid-template-columns: 1fr;
+  }
+
+  .spots-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+

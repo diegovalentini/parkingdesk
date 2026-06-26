@@ -1,0 +1,110 @@
+/* =========================================================
+   ADMIN MOBILE ACCORDIONS
+   Desplegables solo para el panel admin en móvil
+   ========================================================= */
+
+.admin-mobile-collapse__toggle {
+  display: none;
+}
+
+.admin-mobile-collapse__body {
+  display: block;
+}
+
+@media (max-width: 700px) {
+  .admin-layout {
+    gap: 12px;
+  }
+
+  .admin-card {
+    padding: 0;
+    overflow: hidden;
+  }
+
+  .admin-mobile-collapse__toggle {
+    display: flex;
+    width: 100%;
+    min-height: 58px;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    padding: 16px 18px;
+    color: var(--text);
+    background: var(--surface);
+    border: 0;
+    font: inherit;
+    font-weight: 800;
+    font-size: 18px;
+    text-align: left;
+  }
+
+  .admin-mobile-collapse__toggle strong {
+    display: grid;
+    width: 34px;
+    height: 34px;
+    place-items: center;
+    flex: 0 0 auto;
+    border-radius: 999px;
+    color: var(--primary);
+    background: var(--surface-2);
+    border: 1px solid var(--border);
+    font-size: 22px;
+    line-height: 1;
+  }
+
+  .admin-mobile-collapse__body {
+    display: none;
+    padding: 0 18px 18px;
+  }
+
+  .admin-mobile-collapse.is-open .admin-mobile-collapse__body {
+    display: block;
+  }
+
+  .admin-mobile-collapse__body > .section-head:first-child {
+    display: none;
+  }
+
+  .admin-grid,
+  .admin-grid--balanced,
+  .admin-grid--wide-left {
+    grid-template-columns: 1fr;
+    gap: 12px;
+  }
+
+  .cash-grid,
+  .monthly-kpi-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .blacklist-form {
+    grid-template-columns: 1fr;
+  }
+
+  .users-table {
+    display: grid;
+    gap: 10px;
+  }
+
+  .user-row {
+    display: grid;
+    grid-template-columns: 1fr;
+    gap: 10px;
+    align-items: stretch;
+  }
+
+  .user-row .role-select,
+  .user-row .danger-btn {
+    width: 100%;
+  }
+
+  .report-actions {
+    display: grid;
+    gap: 10px;
+  }
+
+  .report-link {
+    width: 100%;
+  }
+}
+

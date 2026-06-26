@@ -1,0 +1,141 @@
+/* v13: PDF mensual por rango */
+.monthly-report-layout {
+  display: grid;
+  gap: 18px;
+}
+
+.monthly-range-form {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr)) auto;
+  align-items: end;
+  gap: 14px;
+}
+
+.monthly-range-actions {
+  display: flex;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
+.monthly-preview {
+  display: grid;
+  gap: 18px;
+}
+
+.monthly-kpi-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 12px;
+}
+
+.monthly-detail-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 18px;
+}
+
+.best-days-grid,
+.vehicle-summary-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 12px;
+  margin-top: 14px;
+}
+
+.best-days-grid div,
+.vehicle-summary-grid div {
+  padding: 14px;
+  border-radius: 16px;
+  background: var(--surface-2);
+  border: 1px solid var(--border);
+}
+
+.best-days-grid span,
+.vehicle-summary-grid span {
+  display: block;
+  color: var(--muted);
+  font-size: 11px;
+  font-weight: 900;
+  text-transform: uppercase;
+  letter-spacing: .05em;
+  margin-bottom: 6px;
+}
+
+.best-days-grid strong,
+.vehicle-summary-grid strong {
+  display: block;
+  font-size: 18px;
+}
+
+.best-days-grid small {
+  display: block;
+  color: var(--muted);
+  font-weight: 700;
+  margin-top: 4px;
+}
+
+.monthly-table-card {
+  overflow: hidden;
+}
+
+.monthly-daily-table {
+  display: grid;
+  gap: 8px;
+}
+
+.monthly-table {
+  display: grid;
+  grid-template-columns: 1.1fr .5fr .9fr .9fr .9fr 1fr;
+  gap: 10px;
+  align-items: center;
+  padding: 12px;
+  border-radius: 14px;
+  background: var(--surface-2);
+  border: 1px solid var(--border);
+  color: var(--text);
+}
+
+.monthly-table span,
+.monthly-table strong {
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+
+.monthly-table--head {
+  color: var(--muted);
+  font-size: 11px;
+  font-weight: 900;
+  text-transform: uppercase;
+  letter-spacing: .05em;
+  background: transparent;
+  border: 0;
+  padding-bottom: 4px;
+}
+
+@media (max-width: 920px) {
+  .monthly-range-form,
+  .monthly-kpi-grid,
+  .monthly-detail-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .monthly-range-actions {
+    width: 100%;
+  }
+
+  .monthly-range-actions > * {
+    flex: 1;
+  }
+}
+
+@media (max-width: 720px) {
+  .monthly-table,
+  .monthly-table--head {
+    grid-template-columns: 1fr 1fr;
+  }
+
+  .monthly-table--head {
+    display: none;
+  }
+}
+

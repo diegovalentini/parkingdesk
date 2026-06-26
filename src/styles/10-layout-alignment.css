@@ -1,0 +1,28 @@
+/* =========================================================
+   v15.6 - Alineación panel principal / grilla de plazas
+   Solo CSS: iguala el ancho del contenido con la grilla de 8 plazas.
+   ========================================================= */
+:root {
+  --main-content-max: 1154px; /* 8 plazas de 132px + 7 gaps de 14px */
+}
+
+.layout {
+  width: min(var(--main-content-max), calc(100% - 32px));
+}
+
+.spots-grid {
+  width: 100%;
+}
+
+@media (max-width: 780px) {
+  .layout {
+    width: min(100% - 24px, var(--main-content-max));
+  }
+}
+
+@media (max-width: 520px) {
+  .layout {
+    width: min(100% - 20px, var(--main-content-max));
+  }
+}
+

@@ -1,0 +1,57 @@
+/* =========================================================
+   PAYMENT OPTIONS - botones Efectivo / MP
+   ========================================================= */
+
+.payment-options {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+}
+
+.payment-option {
+  min-height: 46px;
+  padding: 10px 16px;
+  color: var(--text);
+  background: var(--surface-2);
+  border: 1px solid var(--border);
+  border-radius: 14px;
+  font: inherit;
+  font-weight: 700;
+  cursor: pointer;
+  transition: transform 0.16s ease, background 0.16s ease, border-color 0.16s ease;
+}
+
+.payment-option:hover {
+  transform: translateY(-1px);
+}
+
+.payment-option.is-selected {
+  color: #fff;
+  background: var(--primary);
+  border-color: var(--primary);
+}
+
+body.dark .payment-option {
+  background: #0f1724;
+  color: var(--text);
+  border-color: var(--border);
+}
+
+body.dark .payment-option.is-selected {
+  background: color-mix(in srgb, var(--primary) 60%, #1f2b42);
+  border-color: var(--primary);
+  color: #fff;
+}
+
+@media (max-width: 600px) {
+  .payment-options {
+    gap: 8px;
+  }
+
+  .payment-option {
+    flex: 1;
+    min-height: 48px;
+    font-size: 16px;
+  }
+}
+
