@@ -1,0 +1,188 @@
+/* =========================================================
+   PARKING COLORS - estilo parecido a Flutter
+   Libres auto azul
+   Libres moto verde
+   Ocupadas rojo
+   Bloqueadas gris
+   ========================================================= */
+
+.spot-card {
+  border-width: 1px;
+  border-style: solid;
+  box-shadow: none;
+}
+
+.spot-card__id,
+.spot-card__plate,
+.spot-card__meta,
+.spot-card__badge {
+  transition: color 0.18s ease, background 0.18s ease, border-color 0.18s ease;
+}
+
+/* LIBRE AUTO = AZUL */
+.spot-card--free.spot-card--type-auto {
+  background: linear-gradient(180deg, #7f89c8 0%, #7380c0 100%);
+  border-color: #8d98da;
+}
+
+.spot-card--free.spot-card--type-auto .spot-card__id,
+.spot-card--free.spot-card--type-auto .spot-card__plate,
+.spot-card--free.spot-card--type-auto .spot-card__meta {
+  color: #f3f6ff;
+}
+
+.spot-card--free.spot-card--type-auto .spot-card__badge {
+  color: #f3f6ff;
+  background: rgba(38, 50, 112, 0.42);
+  border: 1px solid rgba(255, 255, 255, 0.12);
+}
+
+/* LIBRE MOTO = VERDE */
+.spot-card--free.spot-card--type-moto {
+  background: linear-gradient(180deg, #87c787 0%, #69b36e 100%);
+  border-color: #96d49b;
+}
+
+.spot-card--free.spot-card--type-moto .spot-card__id,
+.spot-card--free.spot-card--type-moto .spot-card__plate,
+.spot-card--free.spot-card--type-moto .spot-card__meta {
+  color: #f7fff7;
+}
+
+.spot-card--free.spot-card--type-moto .spot-card__badge {
+  color: #f7fff7;
+  background: rgba(34, 79, 44, 0.34);
+  border: 1px solid rgba(255, 255, 255, 0.12);
+}
+
+/* OCUPADA = ROJO */
+.spot-card--occupied {
+  background: linear-gradient(180deg, #cb5d5d 0%, #b94a4a 100%);
+  border-color: #db7878;
+}
+
+.spot-card--occupied .spot-card__id,
+.spot-card--occupied .spot-card__plate,
+.spot-card--occupied .spot-card__meta {
+  color: #fff5f5;
+}
+
+.spot-card--occupied .spot-card__badge {
+  color: #fff5f5;
+  background: rgba(97, 18, 18, 0.34);
+  border: 1px solid rgba(255, 255, 255, 0.12);
+}
+
+/* BLOQUEADA = GRIS */
+.spot-card--blocked {
+  background: linear-gradient(180deg, #b9bcc4 0%, #a8acb5 100%);
+  border-color: #c8cbd2;
+}
+
+.spot-card--blocked .spot-card__id,
+.spot-card--blocked .spot-card__plate,
+.spot-card--blocked .spot-card__meta {
+  color: #ffffff;
+}
+
+.spot-card--blocked .spot-card__badge {
+  color: #ffffff;
+  background: rgba(78, 84, 96, 0.34);
+  border: 1px solid rgba(255, 255, 255, 0.14);
+}
+
+/* =========================================================
+   FREE SPOTS LAYOUT
+   Número centrado + badge Libre debajo
+   ========================================================= */
+
+.spot-card--free {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+}
+
+.spot-card--free .spot-card__top {
+  width: 100%;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  margin-bottom: 0;
+}
+
+.spot-card--free .spot-card__id {
+  font-size: 28px;
+  line-height: 1;
+}
+
+.spot-card--free .spot-card__badge {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 72px;
+  padding: 6px 12px;
+  border-radius: 999px;
+  font-size: 14px;
+  font-weight: 800;
+}
+
+/* opcional: que en móvil no quede tan grande */
+@media (max-width: 600px) {
+  .spot-card--free .spot-card__id {
+    font-size: 22px;
+  }
+
+  .spot-card--free .spot-card__badge {
+    min-width: 56px;
+    padding: 5px 10px;
+    font-size: 12px;
+  }
+}
+
+/* Ocupadas más limpias: sin fecha, solo número + estado + patente */
+.spot-card--occupied {
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+}
+
+.spot-card--occupied .spot-card__top {
+  margin-bottom: 10px;
+}
+
+.spot-card--occupied .spot-card__plate {
+  font-size: 15px;
+  line-height: 1.15;
+  align-items: center;
+}
+
+/* =========================================================
+   PARKING LEGEND COLORS
+   Leyenda actualizada al nuevo esquema visual
+   ========================================================= */
+
+.dot--free-auto {
+  background: #7f89c8;
+}
+
+.dot--free-moto {
+  background: #69b36e;
+}
+
+.dot--occupied-new {
+  background: #b94a4a;
+}
+
+.dot--blocked-new {
+  background: #a8acb5;
+}
+
+@media (max-width: 600px) {
+  .legend {
+    gap: 8px;
+    font-size: 11px;
+  }
+}

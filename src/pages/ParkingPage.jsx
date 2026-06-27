@@ -356,17 +356,12 @@ export default function ParkingPage() {
             />
           </label>
 
-          <div className="legend" aria-label="Leyenda">
-            <span>
-              <i className="dot dot--free"></i> Libre
-            </span>
-            <span>
-              <i className="dot dot--occupied"></i> Ocupada
-            </span>
-            <span>
-              <i className="dot dot--blocked"></i> Bloqueada
-            </span>
-          </div>
+            <div className="legend" aria-label="Leyenda">
+              <span><i className="dot dot--free-auto"></i> Auto libre</span>
+              <span><i className="dot dot--free-moto"></i> Moto libre</span>
+              <span><i className="dot dot--occupied-new"></i> Ocupada</span>
+              <span><i className="dot dot--blocked-new"></i> Bloqueada</span>
+            </div>
         </section>
 
         <section>
@@ -379,18 +374,12 @@ export default function ParkingPage() {
               visibleSpots.map((spot) => {
                 const status = getSpotStatus(spot);
                 const label = getStatusLabel(spot);
-                const plate = spot.occupied ? spot.occupantName || '—' : 'Sin vehículo';
-                const meta =
-                  spot.occupied && spot.startTimestamp
-                    ? `Desde ${formatDateTime(spot.startTimestamp)}`
-                    : spot.type === 'moto'
-                      ? 'Plaza moto'
-                      : 'Plaza auto';
-
+                const plate = spot.occupied ? spot.occupantName || '—' : '';
+                const meta = '';
                 return (
                   <button
                     key={spot.id}
-                    className={`spot-card spot-card--${status}`}
+                    className={`spot-card spot-card--${status} spot-card--type-${spot.type === 'moto' ? 'moto' : 'auto'}`}
                     type="button"
                     onClick={() => setSelectedSpot(spot)}
                   >
@@ -399,8 +388,8 @@ export default function ParkingPage() {
                       <span className="spot-card__badge">{label}</span>
                     </span>
 
-                    <span className="spot-card__plate">{plate}</span>
-                    <span className="spot-card__meta">{meta}</span>
+                    {plate ? <span className="spot-card__plate">{plate}</span> : null}
+                    {meta ? <span className="spot-card__meta">{meta}</span> : null}
                   </button>
                 );
               })
