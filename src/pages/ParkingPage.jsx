@@ -205,7 +205,7 @@ export default function ParkingPage() {
       setSelectedSpot(null);
 
       showToast(
-        `Plaza ${releasedSpot?.id || spotId} liberada. Cobro: ${Number(amount).toFixed(2)} / ${method}.`
+        `Plaza ${releasedSpot?.id || spotId} liberada. Cobro: ${formatMoney(amount)} / ${method}.`
       );
     } catch (error) {
       console.error(error);
@@ -424,6 +424,11 @@ function SpotModal({
 }) {
   const [amount, setAmount] = useState('');
   const [method, setMethod] = useState('');
+
+    useEffect(() => {
+    setAmount('');
+    setMethod('');
+  }, [spot?.id]);
 
   if (!spot) return null;
 

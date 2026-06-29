@@ -28,7 +28,14 @@ export function safeText(value, fallback = '—') {
 }
 
 export function formatMoney(value) {
-  return `€ ${Number(value || 0).toFixed(2)}`;
+  const amount = Number(value || 0 );
+
+  const formatted = new Intl.NumberFormat('es-AR', {
+    minimumFractionDigits:0,
+    maximumFractionDigits:0,
+
+  }).format(amount);
+  return `$ ${formatted}`;
 }
 
 export function formatDate(value) {
