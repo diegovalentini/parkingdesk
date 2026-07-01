@@ -59,10 +59,12 @@ export function toMillis(value) {
 
 export function formatTime(timestamp) {
   if (!timestamp) return '—';
-  const date = new Date(timestamp);
-  const hours = String(date.getHours()).padStart(2, '0');
-  const minutes = String(date.getMinutes()).padStart(2, '0');
-  return `${hours}:${minutes}`;
+  return new Intl.DateTimeFormat('es-AR', {
+    timeZone: 'America/Argentina/Buenos_Aires',
+    hour: '2-digit',
+    minute: '2-digit',
+    hour12: false,
+  }).format(new Date(timestamp));
 }
 
 export function formatDateTime(timestamp) {
@@ -84,18 +86,20 @@ export function formatDuration(startTimestamp, endTimestamp = Date.now()) {
 }
 
 export function todayRange() {
-  const now = new Date();
-  const start = new Date(now.getFullYear(), now.getMonth(), now.getDate()).getTime();
-  const end = start + 24 * 60 * 60 * 1000;
-  return { start, end };
+  const str = new Intl.DateTimeFormat('sv', {
+    timeZone: 'America/Argentina/Buenos_Aires',
+  }).format(new Date());
+  const [y, mo, d] = str.split('-').map(Number);
+  const start = Date.UTC(y, mo - 1, d, 3, 0, 0, 0); // medianoche AR = 03:00 UTC
+  return { start, end: start + 24 * 60 * 60 * 1000 };
 }
 
 export function toDateKey(date) {
   const d = new Date(date);
-  const year = d.getFullYear();
-  const month = String(d.getMonth() + 1).padStart(2, '0');
-  const day = String(d.getDate()).padStart(2, '0');
-  return `${year}-${month}-${day}`;
+  const str = new Intl.DateTimeFormat('sv', {
+    timeZone: 'America/Argentina/Buenos_Aires',
+  }).format(d); // devuelve "YYYY-MM-DD" siempre en AR
+  return str;
 }
 
 export function parseDateInput(value) {

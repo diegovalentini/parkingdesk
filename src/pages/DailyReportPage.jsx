@@ -21,22 +21,32 @@ function fromDateParts(year, monthIndex, day) {
   return new Date(year, monthIndex, day, 12, 0, 0, 0);
 }
 
-function dayRange(date) {
-  const d = new Date(date);
-  const start = new Date(d.getFullYear(), d.getMonth(), d.getDate()).getTime();
 
-  return {
-    start,
-    end: start + 24 * 60 * 60 * 1000,
-  };
+function todayAR() {
+  const str = new Intl.DateTimeFormat('sv', {
+    timeZone: 'America/Argentina/Buenos_Aires',
+  }).format(new Date()); // "YYYY-MM-DD"
+  const [y, mo, d] = str.split('-').map(Number);
+  return new Date(y, mo - 1, d, 12, 0, 0, 0);
 }
 
-function monthRange(date) {
-  const d = new Date(date);
 
+function dayRange(date) {
+  const y = date.getFullYear();
+  const m = date.getMonth();
+  const d = date.getDate();
+  // Medianoche en Argentina (UTC-3) = 03:00 UTC
+  const start = Date.UTC(y, m, d, 3, 0, 0, 0);
+  return { start, end: start + 24 * 60 * 60 * 1000 };
+}
+
+
+function monthRange(date) {
+  const y = date.getFullYear();
+  const m = date.getMonth();
   return {
-    start: new Date(d.getFullYear(), d.getMonth(), 1).getTime(),
-    end: new Date(d.getFullYear(), d.getMonth() + 1, 1).getTime(),
+    start: Date.UTC(y, m, 1, 3, 0, 0, 0),
+    end: Date.UTC(y, m + 1, 1, 3, 0, 0, 0),
   };
 }
 
@@ -45,7 +55,6 @@ function cleanPdfText(value) {
     .replace(/\s+/g, ' ')
     .trim();
 }
-
 function formatPdfMoney(value) {
   const amount = Number(value || 0);
 
@@ -150,11 +159,12 @@ export default function DailyReportPage() {
   const { user } = useAuth();
   const { showToast } = useToast();
 
-  const [calendarDate, setCalendarDate] = useState(new Date());
-  const [selectedDate, setSelectedDate] = useState(new Date());
+  const [calendarDate, setCalendarDate] = useState(() => todayAR());
+  const [selectedDate, setSelectedDate] = useState(() => todayAR());
   const [monthLogs, setMonthLogs] = useState([]);
   const [selectedLogs, setSelectedLogs] = useState([]);
   const [editing, setEditing] = useState(null);
+  const [deleteTarget, setDeleteTarget] = useState(null);
 
   async function refresh() {
     try {
@@ -251,18 +261,23 @@ export default function DailyReportPage() {
     }
   }
 
-  async function deleteLog(logId) {
-    if (!window.confirm('¿Eliminar este registro?')) return;
+function askDeleteLog(log) {
+  setDeleteTarget(log);
+}
 
-    try {
-      await db.collection(LOGS_COLLECTION).doc(logId).delete();
-      await refresh();
-      showToast('Registro eliminado.');
-    } catch (error) {
-      console.error(error);
-      showToast('No se pudo eliminar el registro.');
-    }
+async function confirmDeleteLog() {
+  if (!deleteTarget?.id) return;
+
+  try {
+    await db.collection(LOGS_COLLECTION).doc(deleteTarget.id).delete();
+    setDeleteTarget(null);
+    await refresh();
+    showToast('Registro eliminado.');
+  } catch (error) {
+    console.error(error);
+    showToast('No se pudo eliminar el registro.');
   }
+}
 
   function exportPdf() {
     const stats = buildDailyPdfStats(selectedLogs);
@@ -564,11 +579,17 @@ export default function DailyReportPage() {
             </div>
           </div>
 
-          <DailyRows logs={selectedLogs} onEdit={setEditing} onDelete={deleteLog} />
+          <DailyRows logs={selectedLogs} onEdit={setEditing} onDelete={askDeleteLog} />
         </section>
       </main>
 
       <DailyEditModal log={editing} onClose={() => setEditing(null)} onSave={saveLog} />
+
+      <DeleteLogModal
+        log={deleteTarget}
+        onClose={() => setDeleteTarget(null)}
+        onConfirm={confirmDeleteLog}
+      />
     </>
   );
 }
@@ -582,7 +603,7 @@ function CalendarGrid({ calendarDate, selectedDate, counts, onSelect }) {
   const startOffset = (firstDay.getDay() + 6) % 7;
   const totalCells = Math.ceil((startOffset + lastDay.getDate()) / 7) * 7;
 
-  const todayKey = toDateKey(new Date());
+  const todayKey = toDateKey(todayAR());
   const selectedKey = toDateKey(selectedDate);
   const cells = [];
 
@@ -712,7 +733,7 @@ function DailyRows({ logs, onEdit, onDelete }) {
               <button
                 className="danger-btn secondary-btn--small"
                 type="button"
-                onClick={() => onDelete(log.id)}
+                onClick={() => onDelete(log)}
               >
                 Eliminar
               </button>
@@ -793,6 +814,34 @@ function DailyEditModal({ log, onClose, onSave }) {
           </button>
         </div>
       </form>
+    </Modal>
+  );
+}
+
+function DeleteLogModal({ log, onClose, onConfirm }) {
+  if (!log) return null;
+
+  return (
+    <Modal open={!!log} onClose={onClose} labelledBy="deleteLogTitle">
+      <div className="modal-title">
+        <span>🗑️</span>
+        <h3 id="deleteLogTitle">Eliminar registro</h3>
+      </div>
+
+      <p>
+        ¿Estás seguro que querés eliminar el registro de{' '}
+        <strong>{log.occupantName || 'este vehículo'}</strong>?
+        Esta acción no se puede deshacer.
+      </p>
+
+      <div className="modal-actions">
+        <button className="ghost-btn" type="button" onClick={onClose}>
+          Cancelar
+        </button>
+        <button className="danger-btn" type="button" onClick={onConfirm}>
+          Eliminar
+        </button>
+      </div>
     </Modal>
   );
 }

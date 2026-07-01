@@ -53,25 +53,25 @@ function getEmptyDayStats(date) {
 }
 
 function getRangeMillis(startDate, endDate) {
-  const start = new Date(
+  const start = Date.UTC(
     startDate.getFullYear(),
     startDate.getMonth(),
     startDate.getDate(),
-    0,
+    3,
     0,
     0,
     0
-  ).getTime();
+  );
 
-  const end = new Date(
+  const end = Date.UTC(
     endDate.getFullYear(),
     endDate.getMonth(),
     endDate.getDate() + 1,
-    0,
+    3,
     0,
     0,
     0
-  ).getTime();
+  );
 
   return {
     start,
