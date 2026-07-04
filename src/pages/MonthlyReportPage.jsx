@@ -53,30 +53,16 @@ function getEmptyDayStats(date) {
 }
 
 function getRangeMillis(startDate, endDate) {
+  // Medianoche Argentina (UTC-3) = 03:00 UTC
   const start = Date.UTC(
-    startDate.getFullYear(),
-    startDate.getMonth(),
-    startDate.getDate(),
-    3,
-    0,
-    0,
-    0
+    startDate.getFullYear(), startDate.getMonth(), startDate.getDate(),
+    3, 0, 0, 0
   );
-
   const end = Date.UTC(
-    endDate.getFullYear(),
-    endDate.getMonth(),
-    endDate.getDate() + 1,
-    3,
-    0,
-    0,
-    0
+    endDate.getFullYear(), endDate.getMonth(), endDate.getDate() + 1,
+    3, 0, 0, 0
   );
-
-  return {
-    start,
-    end,
-  };
+  return { start, end };
 }
 
 async function getLogsInRange(startDate, endDate) {

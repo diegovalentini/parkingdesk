@@ -7,6 +7,7 @@ import { db, firebase } from '../firebase/firebase';
 import {
   formatDateTime,
   formatDuration,
+  formatMoney,
   LOGS_COLLECTION,
   normalizePlate,
   sortSpots,
@@ -37,6 +38,7 @@ export default function ParkingPage() {
   const [spots, setSpots] = useState([]);
   const [search, setSearch] = useState('');
   const [selectedSpot, setSelectedSpot] = useState(null);
+  const [moveTarget, setMoveTarget] = useState(null);
 
   useEffect(() => {
     const unsubscribe = db.collection(SPOTS_COLLECTION).onSnapshot(
@@ -290,32 +292,170 @@ export default function ParkingPage() {
     }
   }
 
-  async function setSpotBlocked(spotId, blocked) {
-    if (!isAdmin) {
-      showToast('Solo un admin puede bloquear o desbloquear plazas.');
-      return;
-    }
 
-    const spot = spots.find((item) => item.id === spotId);
+function startMoveSpot(spot) {
+  if (!canOperate) {
+    showToast('No tenés permisos para mover plazas.');
+    return;
+  }
 
-    if (spot?.occupied && blocked) {
-      showToast('No se puede bloquear una plaza ocupada.');
-      return;
-    }
+  if (!spot?.occupied) {
+    showToast('Solo podés mover una plaza ocupada.');
+    return;
+  }
 
-    try {
-      await db.collection(SPOTS_COLLECTION).doc(spotId).update({
-        blocked,
+  setMoveTarget(spot);
+}
+
+async function confirmMoveSpot(toSpotId) {
+  if (!canOperate) {
+    showToast('No tenés permisos para mover plazas.');
+    return;
+  }
+
+  if (!moveTarget?.id) {
+    showToast('No hay una plaza seleccionada para mover.');
+    return;
+  }
+
+  if (moveTarget.id === toSpotId) {
+    showToast('Elegí una plaza diferente.');
+    return;
+  }
+
+  try {
+    const fromRef = db.collection(SPOTS_COLLECTION).doc(moveTarget.id);
+    const toRef = db.collection(SPOTS_COLLECTION).doc(toSpotId);
+
+    await db.runTransaction(async (transaction) => {
+      const fromSnap = await transaction.get(fromRef);
+      const toSnap = await transaction.get(toRef);
+
+      if (!fromSnap.exists || !toSnap.exists) {
+        throw new Error('spot-not-found');
+      }
+
+      const fromSpot = spotFromDoc(fromSnap);
+      const toSpot = spotFromDoc(toSnap);
+
+      if (!fromSpot.occupied) {
+        throw new Error('from-not-occupied');
+      }
+
+      if (toSpot.occupied) {
+        throw new Error('to-occupied');
+      }
+
+      if (toSpot.blocked) {
+        throw new Error('to-blocked');
+      }
+
+      transaction.update(toRef, {
+        occupied: true,
+        occupantName: fromSpot.occupantName || '',
+        plateNormalized: fromSpot.plateNormalized || normalizePlate(fromSpot.occupantName),
+        startTimestamp: fromSpot.startTimestamp || Date.now(),
+        vehicleType: fromSpot.vehicleType || (toSpot.type === 'moto' ? 'Moto' : 'Auto'),
+        openedBy: fromSpot.openedBy || '—',
+        openedByUid: fromSpot.openedByUid || null,
+        hasKey: fromSpot.hasKey === true,
         updatedAt: firebase.firestore.FieldValue.serverTimestamp(),
       });
 
-      setSelectedSpot(null);
-      showToast(blocked ? `Plaza ${spotId} bloqueada.` : `Plaza ${spotId} desbloqueada.`);
-    } catch (error) {
-      console.error(error);
-      showToast('No se pudo cambiar el estado de la plaza.');
+      transaction.update(fromRef, {
+        occupied: false,
+        occupantName: null,
+        plateNormalized: null,
+        startTimestamp: null,
+        vehicleType: fromSpot.type === 'moto' ? 'Moto' : null,
+        openedBy: null,
+        openedByUid: null,
+        hasKey: false,
+        updatedAt: firebase.firestore.FieldValue.serverTimestamp(),
+      });
+    });
+
+    showToast(`Plaza ${moveTarget.id} movida a ${toSpotId}.`);
+    setMoveTarget(null);
+    setSelectedSpot(null);
+  } catch (error) {
+    console.error(error);
+
+    if (error.message === 'to-occupied') {
+      showToast('La plaza destino está ocupada.');
+      return;
     }
+
+    if (error.message === 'to-blocked') {
+      showToast('La plaza destino está bloqueada.');
+      return;
+    }
+
+    if (error.message === 'from-not-occupied') {
+      showToast('La plaza origen ya no está ocupada.');
+      return;
+    }
+
+    showToast('No se pudo mover la plaza.');
   }
+}
+
+  
+async function setSpotKey(spotId, hasKey) {
+  if (!canOperate) {
+    showToast('No tenés permisos para modificar la llave.');
+    return;
+  }
+
+  try {
+    await db.collection(SPOTS_COLLECTION).doc(spotId).update({
+      hasKey,
+      updatedAt: firebase.firestore.FieldValue.serverTimestamp(),
+    });
+
+    setSelectedSpot((current) =>
+      current?.id === spotId
+        ? {
+            ...current,
+            hasKey,
+          }
+        : current
+    );
+
+    showToast(hasKey ? `Llave agregada a la plaza ${spotId}.` : `Llave quitada de la plaza ${spotId}.`);
+  } catch (error) {
+    console.error(error);
+    showToast('No se pudo actualizar la llave.');
+  }
+}
+
+
+async function setSpotBlocked(spotId, blocked) {
+  if (!canOperate) {
+    showToast('No tenés permisos para bloquear o desbloquear plazas.');
+    return;
+  }
+
+  const spot = spots.find((item) => item.id === spotId);
+
+  if (spot?.occupied && blocked) {
+    showToast('No se puede bloquear una plaza ocupada.');
+    return;
+  }
+
+  try {
+    await db.collection(SPOTS_COLLECTION).doc(spotId).update({
+      blocked,
+      updatedAt: firebase.firestore.FieldValue.serverTimestamp(),
+    });
+
+    setSelectedSpot(null);
+    showToast(blocked ? `Plaza ${spotId} bloqueada.` : `Plaza ${spotId} desbloqueada.`);
+  } catch (error) {
+    console.error(error);
+    showToast('No se pudo cambiar el estado de la plaza.');
+  }
+}
 
   const links = [
     {
@@ -375,7 +515,8 @@ export default function ParkingPage() {
                 const status = getSpotStatus(spot);
                 const label = getStatusLabel(spot);
                 const plate = spot.occupied ? spot.occupantName || '—' : '';
-                const meta = '';
+                const meta = spot.occupied && spot.hasKey ? '🔑 Llave' : '';
+
                 return (
                   <button
                     key={spot.id}
@@ -407,6 +548,14 @@ export default function ParkingPage() {
         releaseSpot={releaseSpot}
         editPlate={editPlate}
         setSpotBlocked={setSpotBlocked}
+        setSpotKey={setSpotKey}
+        startMoveSpot={startMoveSpot}
+      />
+      <MoveSpotModal
+        source={moveTarget}
+        spots={spots}
+        onClose={() => setMoveTarget(null)}
+        onConfirm={confirmMoveSpot}
       />
     </>
   );
@@ -421,6 +570,8 @@ function SpotModal({
   releaseSpot,
   editPlate,
   setSpotBlocked,
+  setSpotKey,
+  startMoveSpot,
 }) {
   const [amount, setAmount] = useState('');
   const [method, setMethod] = useState('');
@@ -476,7 +627,7 @@ function SpotModal({
       {canOperate && status === 'free' ? (
         <FreeSpotForm
           spot={spot}
-          isAdmin={isAdmin}
+          canOperate={canOperate}
           onClose={onClose}
           occupySpot={occupySpot}
           setSpotBlocked={setSpotBlocked}
@@ -504,6 +655,11 @@ function SpotModal({
             <div className="detail-row">
               <span>Desde</span>
               <strong>{spot.startTimestamp ? formatDateTime(spot.startTimestamp) : '—'}</strong>
+            </div>
+
+            <div className="detail-row">
+              <span>Llave</span>
+              <strong>{spot.hasKey ? '🔑 Sí' : 'No'}</strong>
             </div>
 
             <div className="detail-row">
@@ -564,6 +720,23 @@ function SpotModal({
                 Editar patente
               </button>
 
+              <button
+                className="secondary-btn"
+                type="button"
+                onClick={() => startMoveSpot(spot)}
+              >
+                Mover plaza
+              </button>
+
+              <button
+                className={spot.hasKey ? 'secondary-btn' : 'primary-btn'}
+                type="button"
+                onClick={() => setSpotKey(spot.id, !spot.hasKey)}
+              >
+                {spot.hasKey ? 'Quitar llave' : 'Agregar llave'}
+              </button>
+
+
               <button className="ghost-btn" type="button" onClick={onClose}>
                 Cerrar
               </button>
@@ -592,9 +765,9 @@ function SpotModal({
               Cerrar
             </button>
 
-            {isAdmin ? (
+            {canOperate ? (
               <button
-                className="primary-btn"
+                className="secondary-btn"
                 type="button"
                 onClick={() => setSpotBlocked(spot.id, false)}
               >
@@ -610,7 +783,7 @@ function SpotModal({
 
 function FreeSpotForm({
   spot,
-  isAdmin,
+  canOperate,
   onClose,
   occupySpot,
   setSpotBlocked,
@@ -661,15 +834,15 @@ function FreeSpotForm({
         </label>
 
         <div className="modal-actions">
-          {isAdmin ? (
-            <button
-              className="ghost-btn"
-              type="button"
-              onClick={() => setSpotBlocked(spot.id, true)}
-            >
-              Bloquear plaza
-            </button>
-          ) : null}
+            {canOperate ? (
+              <button
+                className="secondary-btn"
+                type="button"
+                onClick={() => setSpotBlocked(spot.id, true)}
+              >
+                Bloquear plaza
+              </button>
+            ) : null}
 
           <button className="ghost-btn" type="button" onClick={onClose}>
             Cerrar
@@ -681,5 +854,93 @@ function FreeSpotForm({
         </div>
       </form>
     </>
+  );
+}
+
+function MoveSpotModal({ source, spots, onClose, onConfirm }) {
+  const [targetId, setTargetId] = useState('');
+
+  useEffect(() => {
+    setTargetId('');
+  }, [source?.id]);
+
+  if (!source) return null;
+
+  const availableSpots = spots.filter(
+    (spot) =>
+      spot.id !== source.id &&
+      spot.occupied !== true &&
+      spot.blocked !== true
+  );
+
+  return (
+    <Modal open={!!source} onClose={onClose} labelledBy="moveSpotTitle">
+      <div className="modal-title">
+        <span>🔁</span>
+        <h3 id="moveSpotTitle">Mover plaza</h3>
+      </div>
+
+      <div className="detail-list">
+        <div className="detail-row">
+          <span>Origen</span>
+          <strong>Plaza {source.id}</strong>
+        </div>
+
+        <div className="detail-row">
+          <span>Patente</span>
+          <strong>{source.occupantName || '—'}</strong>
+        </div>
+
+        <div className="detail-row">
+          <span>Llave</span>
+          <strong>{source.hasKey ? '🔑 Sí' : 'No'}</strong>
+        </div>
+      </div>
+
+      <form
+        className="form-grid"
+        onSubmit={(event) => {
+          event.preventDefault();
+          onConfirm(targetId);
+        }}
+      >
+        <label className="form-field">
+          <span>Plaza destino</span>
+          <select
+            value={targetId}
+            onChange={(event) => setTargetId(event.target.value)}
+            required
+          >
+            <option value="">Elegí una plaza libre</option>
+
+            {availableSpots.map((spot) => (
+              <option key={spot.id} value={spot.id}>
+                Plaza {spot.id} · {spot.type === 'moto' ? 'Moto' : 'Auto'}
+              </option>
+            ))}
+          </select>
+        </label>
+
+        {!availableSpots.length ? (
+          <p className="muted">
+            No hay plazas libres disponibles para mover este vehículo.
+          </p>
+        ) : null}
+
+        <div className="modal-actions">
+          <button className="ghost-btn" type="button" onClick={onClose}>
+            Cancelar
+          </button>
+
+          <button
+            className="primary-btn"
+            type="submit"
+            disabled={!availableSpots.length}
+          >
+            Confirmar movimiento
+          </button>
+        </div>
+      </form>
+    </Modal>
   );
 }

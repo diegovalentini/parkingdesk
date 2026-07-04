@@ -200,9 +200,42 @@ export default function DailyReportPage() {
     }
   }
 
-  useEffect(() => {
-    refresh();
-  }, [calendarDate, selectedDate]);
+
+useEffect(() => {
+  const { start, end } = monthRange(calendarDate);
+  const unsub = db
+    .collection(LOGS_COLLECTION)
+    .where('endTimestamp', '>=', start)
+    .where('endTimestamp', '<', end)
+    .onSnapshot(
+      (snap) => setMonthLogs(
+        snap.docs.map(logFromDoc).sort((a, b) => (b.endTimestamp || 0) - (a.endTimestamp || 0))
+      ),
+      (err) => {
+        console.error(err);
+        showToast('No se pudo cargar el historial del mes.');
+      }
+    );
+  return () => unsub();
+}, [calendarDate]);
+
+useEffect(() => {
+  const { start, end } = dayRange(selectedDate);
+  const unsub = db
+    .collection(LOGS_COLLECTION)
+    .where('endTimestamp', '>=', start)
+    .where('endTimestamp', '<', end)
+    .onSnapshot(
+      (snap) => setSelectedLogs(
+        snap.docs.map(logFromDoc).sort((a, b) => (b.endTimestamp || 0) - (a.endTimestamp || 0))
+      ),
+      (err) => {
+        console.error(err);
+        showToast('No se pudo cargar el historial del día.');
+      }
+    );
+  return () => unsub();
+}, [selectedDate]);
 
   const counts = useMemo(() => {
     const map = new Map();
@@ -253,7 +286,6 @@ export default function DailyReportPage() {
       );
 
       setEditing(null);
-      await refresh();
       showToast('Registro actualizado.');
     } catch (error) {
       console.error(error);
@@ -271,7 +303,6 @@ async function confirmDeleteLog() {
   try {
     await db.collection(LOGS_COLLECTION).doc(deleteTarget.id).delete();
     setDeleteTarget(null);
-    await refresh();
     showToast('Registro eliminado.');
   } catch (error) {
     console.error(error);

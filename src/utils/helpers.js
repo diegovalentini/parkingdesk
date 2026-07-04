@@ -68,12 +68,15 @@ export function formatTime(timestamp) {
 }
 
 export function formatDateTime(timestamp) {
-  const date = new Date(timestamp);
-  const day = String(date.getDate()).padStart(2, '0');
-  const month = String(date.getMonth() + 1).padStart(2, '0');
-  const hours = String(date.getHours()).padStart(2, '0');
-  const minutes = String(date.getMinutes()).padStart(2, '0');
-  return `${day}/${month} ${hours}:${minutes}`;
+  if (!timestamp) return '—';
+  return new Intl.DateTimeFormat('es-AR', {
+    timeZone: 'America/Argentina/Buenos_Aires',
+    day: '2-digit',
+    month: '2-digit',
+    hour: '2-digit',
+    minute: '2-digit',
+    hour12: false,
+  }).format(new Date(timestamp));
 }
 
 export function formatDuration(startTimestamp, endTimestamp = Date.now()) {

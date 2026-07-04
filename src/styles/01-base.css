@@ -527,3 +527,28 @@ h1 {
   }
 }
 
+.spot-card__meta {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  margin-top: 6px;
+  padding: 4px 10px;
+  border-radius: 999px;
+  font-size: 12px;
+  font-weight: 800;
+  background: rgba(255, 255, 255, 0.16);
+  color: rgba(255, 255, 255, 0.95);
+}
+
+@media (max-width: 640px) {
+  .spot-card__meta {
+    margin-top: 4px;
+    padding: 4px 10px;
+    font-size: 0.88rem;
+    font-weight: 700;
+    line-height: 1;
+    border-radius: 999px;
+    max-width: 78%;
+    align-self: center;
+  }
+}
