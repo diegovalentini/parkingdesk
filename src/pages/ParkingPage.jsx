@@ -31,6 +31,73 @@ function getStatusLabel(spot) {
   return 'Libre';
 }
 
+const ARGENTINA_TIME_ZONE = 'America/Argentina/Buenos_Aires';
+
+function getArgentinaDateParts(timestamp) {
+  const parts = new Intl.DateTimeFormat('en-CA', {
+    timeZone: ARGENTINA_TIME_ZONE,
+    year: 'numeric',
+    month: '2-digit',
+    day: '2-digit',
+    hour: '2-digit',
+    minute: '2-digit',
+    hourCycle: 'h23',
+  }).formatToParts(new Date(timestamp));
+
+  const values = Object.fromEntries(
+    parts
+      .filter((part) => part.type !== 'literal')
+      .map((part) => [part.type, part.value])
+  );
+
+  return {
+    year: Number(values.year),
+    month: Number(values.month),
+    day: Number(values.day),
+    hour: Number(values.hour),
+    minute: Number(values.minute),
+  };
+}
+
+function toArgentinaTimeInput(timestamp) {
+  if (!timestamp) return '';
+
+  const { hour, minute } = getArgentinaDateParts(timestamp);
+
+  return `${String(hour).padStart(2, '0')}:${String(minute).padStart(2, '0')}`;
+}
+
+function buildArgentinaTimestamp(originalTimestamp, timeValue) {
+  if (!originalTimestamp || !/^\d{2}:\d{2}$/.test(timeValue)) {
+    return null;
+  }
+
+  const { year, month, day } = getArgentinaDateParts(originalTimestamp);
+  const [hour, minute] = timeValue.split(':').map(Number);
+
+  if (
+    !Number.isInteger(hour) ||
+    !Number.isInteger(minute) ||
+    hour < 0 ||
+    hour > 23 ||
+    minute < 0 ||
+    minute > 59
+  ) {
+    return null;
+  }
+
+  // Argentina es UTC-3.
+  return Date.UTC(
+    year,
+    month - 1,
+    day,
+    hour + 3,
+    minute,
+    0,
+    0
+  );
+}
+
 export default function ParkingPage() {
   const { user } = useAuth();
   const { showToast } = useToast();
@@ -39,6 +106,7 @@ export default function ParkingPage() {
   const [search, setSearch] = useState('');
   const [selectedSpot, setSelectedSpot] = useState(null);
   const [moveTarget, setMoveTarget] = useState(null);
+  const [startTimeTarget, setStartTimeTarget] = useState(null);
 
   useEffect(() => {
     const unsubscribe = db.collection(SPOTS_COLLECTION).onSnapshot(
@@ -400,6 +468,91 @@ async function confirmMoveSpot(toSpotId) {
   }
 }
 
+function openStartTimeEditor(spot) {
+  if (!isAdmin) {
+    showToast('Solo un administrador puede editar la hora de inicio.');
+    return;
+  }
+
+  if (!spot?.occupied || !spot.startTimestamp) {
+    showToast('La plaza no tiene una hora de inicio válida.');
+    return;
+  }
+
+  setSelectedSpot(null);
+  setStartTimeTarget(spot);
+}
+
+async function saveSpotStartTime(timeValue) {
+  if (!isAdmin) {
+    showToast('Solo un administrador puede editar la hora de inicio.');
+    return false;
+  }
+
+  if (!startTimeTarget?.id || !startTimeTarget.startTimestamp) {
+    showToast('No hay una plaza válida para editar.');
+    return false;
+  }
+
+  const nextStartTimestamp = buildArgentinaTimestamp(
+    startTimeTarget.startTimestamp,
+    timeValue
+  );
+
+  if (!nextStartTimestamp) {
+    showToast('Ingresá una hora válida.');
+    return false;
+  }
+
+  if (nextStartTimestamp > Date.now()) {
+    showToast('La hora de inicio no puede estar en el futuro.');
+    return false;
+  }
+
+  try {
+    const spotRef = db
+      .collection(SPOTS_COLLECTION)
+      .doc(startTimeTarget.id);
+
+    const spotSnapshot = await spotRef.get();
+
+    if (!spotSnapshot.exists) {
+      showToast('La plaza ya no existe.');
+      return false;
+    }
+
+    const currentSpot = spotFromDoc(spotSnapshot);
+
+    if (!currentSpot.occupied) {
+      showToast('La plaza ya no está ocupada.');
+      setStartTimeTarget(null);
+      return false;
+    }
+
+    await spotRef.update({
+      startTimestamp: nextStartTimestamp,
+      updatedAt: firebase.firestore.FieldValue.serverTimestamp(),
+      startTimeEditedAt: firebase.firestore.FieldValue.serverTimestamp(),
+      startTimeEditedBy: user?.username || user?.email || 'Admin',
+      startTimeEditedByUid: user?.uid || null,
+    });
+
+    const updatedSpot = {
+      ...currentSpot,
+      startTimestamp: nextStartTimestamp,
+    };
+
+    setStartTimeTarget(null);
+    setSelectedSpot(updatedSpot);
+
+    showToast(`Hora de inicio actualizada a ${timeValue}.`);
+    return true;
+  } catch (error) {
+    console.error('Error editando hora de inicio:', error);
+    showToast('No se pudo actualizar la hora de inicio.');
+    return false;
+  }
+}
   
 async function setSpotKey(spotId, hasKey) {
   if (!canOperate) {
@@ -550,12 +703,18 @@ async function setSpotBlocked(spotId, blocked) {
         setSpotBlocked={setSpotBlocked}
         setSpotKey={setSpotKey}
         startMoveSpot={startMoveSpot}
+        openStartTimeEditor={openStartTimeEditor}
       />
       <MoveSpotModal
         source={moveTarget}
         spots={spots}
         onClose={() => setMoveTarget(null)}
         onConfirm={confirmMoveSpot}
+      />
+      <EditStartTimeModal
+        spot={startTimeTarget}
+        onClose={() => setStartTimeTarget(null)}
+        onSave={saveSpotStartTime}
       />
     </>
   );
@@ -572,6 +731,7 @@ function SpotModal({
   setSpotBlocked,
   setSpotKey,
   startMoveSpot,
+  openStartTimeEditor,
 }) {
   const [amount, setAmount] = useState('');
   const [method, setMethod] = useState('');
@@ -720,6 +880,16 @@ function SpotModal({
                 Editar patente
               </button>
 
+              {isAdmin ? (
+                <button
+                  className="secondary-btn"
+                  type="button"
+                  onClick={() => openStartTimeEditor(spot)}
+                >
+                  Editar hora
+                </button>
+              ) : null}
+
               <button
                 className="secondary-btn"
                 type="button"
@@ -820,18 +990,30 @@ function FreeSpotForm({
           />
         </label>
 
-        <label className="form-field">
-          <span>Tipo de vehículo</span>
-          <select
-            value={vehicleType}
-            onChange={(event) => setVehicleType(event.target.value)}
-            required
-          >
-            <option value="Auto">Auto</option>
-            <option value="Camioneta">Camioneta</option>
-            <option value="Moto">Moto</option>
-          </select>
-        </label>
+      <div className="form-field">
+        <span>Tipo de vehículo</span>
+            
+        <div
+          className="vehicle-type-options"
+          role="group"
+          aria-label="Tipo de vehículo"
+        >
+          {['Auto', 'Camioneta', 'Moto'].map((type) => (
+            <button
+              key={type}
+              className={`vehicle-type-option ${
+                vehicleType === type ? 'is-selected' : ''
+              }`}
+              type="button"
+              onClick={() => setVehicleType(type)}
+              aria-pressed={vehicleType === type}
+            >
+              {vehicleType === type ? '✓ ' : ''}
+              {type}
+            </button>
+          ))}
+        </div>
+      </div>
 
         <div className="modal-actions">
             {canOperate ? (
@@ -938,6 +1120,108 @@ function MoveSpotModal({ source, spots, onClose, onConfirm }) {
             disabled={!availableSpots.length}
           >
             Confirmar movimiento
+          </button>
+        </div>
+      </form>
+    </Modal>
+  );
+}
+
+function EditStartTimeModal({ spot, onClose, onSave }) {
+  const [timeValue, setTimeValue] = useState('');
+  const [saving, setSaving] = useState(false);
+
+  useEffect(() => {
+    setTimeValue(
+      spot?.startTimestamp
+        ? toArgentinaTimeInput(spot.startTimestamp)
+        : ''
+    );
+
+    setSaving(false);
+  }, [spot?.id, spot?.startTimestamp]);
+
+  if (!spot) return null;
+
+  async function handleSubmit(event) {
+    event.preventDefault();
+
+    if (!timeValue || saving) return;
+
+    try {
+      setSaving(true);
+      await onSave(timeValue);
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  return (
+    <Modal
+      open={!!spot}
+      onClose={saving ? undefined : onClose}
+      labelledBy="editStartTimeTitle"
+    >
+      <div className="modal-title">
+        <span>🕒</span>
+        <h3 id="editStartTimeTitle">Editar hora de inicio</h3>
+      </div>
+
+      <div className="detail-list">
+        <div className="detail-row">
+          <span>Plaza</span>
+          <strong>{spot.id}</strong>
+        </div>
+
+        <div className="detail-row">
+          <span>Patente</span>
+          <strong>{spot.occupantName || '—'}</strong>
+        </div>
+
+        <div className="detail-row">
+          <span>Hora actual</span>
+          <strong>
+            {spot.startTimestamp
+              ? formatDateTime(spot.startTimestamp)
+              : '—'}
+          </strong>
+        </div>
+      </div>
+
+      <form className="form-grid" onSubmit={handleSubmit}>
+        <label className="form-field">
+          <span>Nueva hora de inicio</span>
+
+          <input
+            value={timeValue}
+            onChange={(event) => setTimeValue(event.target.value)}
+            type="time"
+            step="60"
+            required
+            autoFocus
+          />
+        </label>
+
+        <p className="muted small-text">
+          Se conservará la fecha original de ingreso. Solo cambiará la hora.
+        </p>
+
+        <div className="modal-actions">
+          <button
+            className="ghost-btn"
+            type="button"
+            onClick={onClose}
+            disabled={saving}
+          >
+            Cancelar
+          </button>
+
+          <button
+            className="primary-btn"
+            type="submit"
+            disabled={saving || !timeValue}
+          >
+            {saving ? 'Guardando...' : 'Guardar hora'}
           </button>
         </div>
       </form>

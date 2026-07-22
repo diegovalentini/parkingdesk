@@ -1,0 +1,51 @@
+.vehicle-type-options {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 8px;
+}
+
+.vehicle-type-option {
+  min-width: 0;
+  min-height: 46px;
+  padding: 10px 8px;
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  background: var(--surface-soft);
+  color: var(--text);
+  font: inherit;
+  font-size: 14px;
+  font-weight: 700;
+  line-height: 1.15;
+  cursor: pointer;
+  transition:
+    background 0.18s ease,
+    border-color 0.18s ease,
+    transform 0.18s ease;
+}
+
+.vehicle-type-option:hover {
+  border-color: var(--primary);
+}
+
+.vehicle-type-option:active {
+  transform: scale(0.98);
+}
+
+.vehicle-type-option.is-selected {
+  border-color: var(--primary);
+  background: var(--primary);
+  color: #fff;
+}
+
+@media (max-width: 600px) {
+  .vehicle-type-options {
+    gap: 6px;
+  }
+
+  .vehicle-type-option {
+    min-height: 44px;
+    padding: 9px 4px;
+    font-size: 12px;
+    border-radius: 10px;
+  }
+}
