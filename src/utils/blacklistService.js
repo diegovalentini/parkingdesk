@@ -1,16 +1,5 @@
-import {
-  collection,
-  deleteDoc,
-  doc,
-  getDoc,
-  onSnapshot,
-  orderBy,
-  query,
-  serverTimestamp,
-  setDoc,
-} from 'firebase/firestore';
-
-import { db } from '../firebase/firebase';
+import { firebase } from '../firebase/firebase';
+import { parkingLotBlacklistRef } from '../firebase/parkingLotRefs';
 
 export function normalizePlate(value) {
   return String(value || '')
@@ -19,14 +8,17 @@ export function normalizePlate(value) {
     .replace(/[^a-z0-9]/g, '');
 }
 
-export function listenBlacklist(callback, onError) {
-  const q = query(
-    collection(db, 'blacklist'),
-    orderBy('createdAt', 'desc')
+export function listenBlacklist(
+  parkingLotId,
+  callback,
+  onError
+) {
+  const query = parkingLotBlacklistRef(parkingLotId).orderBy(
+    'createdAt',
+    'desc'
   );
 
-  return onSnapshot(
-    q,
+  return query.onSnapshot(
     (snapshot) => {
       const entries = snapshot.docs.map((item) => ({
         id: item.id,
@@ -39,62 +31,103 @@ export function listenBlacklist(callback, onError) {
   );
 }
 
-export async function addBlacklistEntry({ plate, reason, notes, user }) {
-  const cleanPlate = String(plate || '').trim().toUpperCase();
+export async function addBlacklistEntry({
+  parkingLotId,
+  plate,
+  reason,
+  notes,
+  user,
+}) {
+  const cleanPlate = String(plate || '')
+    .trim()
+    .toUpperCase();
+
   const plateNormalized = normalizePlate(cleanPlate);
 
   if (!plateNormalized || !reason?.trim()) {
     throw new Error('Ingresá patente y motivo.');
   }
 
-  await setDoc(
-    doc(db, 'blacklist', plateNormalized),
-    {
-      plate: cleanPlate,
-      plateNormalized,
-      reason: reason.trim(),
-      notes: String(notes || '').trim(),
-      active: true,
-      createdAt: serverTimestamp(),
-      updatedAt: serverTimestamp(),
-      createdBy: user?.username || user?.email || 'Admin',
-      createdByUid: user?.uid || null,
-      updatedBy: user?.username || user?.email || 'Admin',
-      updatedByUid: user?.uid || null,
-    },
-    { merge: true }
-  );
+  await parkingLotBlacklistRef(parkingLotId)
+    .doc(plateNormalized)
+    .set(
+      {
+        plate: cleanPlate,
+        plateNormalized,
+        reason: reason.trim(),
+        notes: String(notes || '').trim(),
+        active: true,
+        createdAt:
+          firebase.firestore.FieldValue.serverTimestamp(),
+        updatedAt:
+          firebase.firestore.FieldValue.serverTimestamp(),
+        createdBy:
+          user?.username || user?.email || 'Admin',
+        createdByUid: user?.uid || null,
+        updatedBy:
+          user?.username || user?.email || 'Admin',
+        updatedByUid: user?.uid || null,
+      },
+      { merge: true }
+    );
 }
 
-export async function setBlacklistActive(plateNormalized, active, user) {
-  await setDoc(
-    doc(db, 'blacklist', plateNormalized),
-    {
-      active,
-      updatedAt: serverTimestamp(),
-      updatedBy: user?.username || user?.email || 'Admin',
-      updatedByUid: user?.uid || null,
-    },
-    { merge: true }
-  );
+export async function setBlacklistActive(
+  parkingLotId,
+  plateNormalized,
+  active,
+  user
+) {
+  await parkingLotBlacklistRef(parkingLotId)
+    .doc(plateNormalized)
+    .set(
+      {
+        active,
+        updatedAt:
+          firebase.firestore.FieldValue.serverTimestamp(),
+        updatedBy:
+          user?.username || user?.email || 'Admin',
+        updatedByUid: user?.uid || null,
+      },
+      { merge: true }
+    );
 }
 
-export async function deleteBlacklistEntry(plateNormalized) {
-  await deleteDoc(doc(db, 'blacklist', plateNormalized));
+export async function deleteBlacklistEntry(
+  parkingLotId,
+  plateNormalized
+) {
+  await parkingLotBlacklistRef(parkingLotId)
+    .doc(plateNormalized)
+    .delete();
 }
 
-export async function getActiveBlacklistEntry(plate) {
+export async function getActiveBlacklistEntry(
+  parkingLotId,
+  plate
+) {
   const plateNormalized = normalizePlate(plate);
-  if (!plateNormalized) return null;
 
-  const snap = await getDoc(doc(db, 'blacklist', plateNormalized));
-  if (!snap.exists()) return null;
+  if (!plateNormalized) {
+    return null;
+  }
 
-  const data = snap.data();
-  if (data.active === false) return null;
+  const snapshot = await parkingLotBlacklistRef(parkingLotId)
+    .doc(plateNormalized)
+    .get();
+
+  if (!snapshot.exists) {
+    return null;
+  }
+
+  const data = snapshot.data() || {};
+
+  if (data.active === false) {
+    return null;
+  }
 
   return {
-    id: snap.id,
+    id: snapshot.id,
     ...data,
   };
 }

@@ -1,0 +1,41 @@
+# Dependencias
+node_modules/
+
+# Builds
+dist/
+build/
+
+# Variables de entorno locales
+.env
+.env.local
+.env.*.local
+
+# Credenciales privadas
+serviceAccountKey.json
+service-account.json
+*.pem
+*.key
+
+# Logs
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+
+# Editores y sistema
+.vscode/
+.idea/
+.DS_Store
+Thumbs.db
+
+# Credenciales privadas de migración
+migration/credentials/
+
+# Caché de Firebase
+.firebase/
+
+# Backups locales
+backups/
+
+# Dependencias de Functions
+functions/node_modules/

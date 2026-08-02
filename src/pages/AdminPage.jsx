@@ -3,14 +3,19 @@ import Topbar from '../components/Topbar';
 import { useAuth } from '../auth/AuthContext';
 import { useToast } from '../components/Toast';
 import { db, firebase } from '../firebase/firebase';
+import { createParkingLotUser } from '../services/usersService';
 import {
   formatDate,
   formatMoney,
-  LOGS_COLLECTION,
-  SETTINGS_DOC,
-  SPOTS_COLLECTION,
   todayRange,
 } from '../utils/helpers';
+
+import {
+  parkingLotLogsRef,
+  parkingLotSettingsDocRef,
+  parkingLotSpotsRef,
+  parkingLotUsersQuery,
+} from '../firebase/parkingLotRefs';
 import {
   addBlacklistEntry,
   deleteBlacklistEntry,
@@ -72,10 +77,19 @@ function AdminMobileCollapse({ id, title, open, onToggle, children }) {
 }
 
 export default function AdminPage() {
-  const { user } = useAuth();
+  const { user, parkingLotId } = useAuth();
   const { showToast } = useToast();
 
   const [users, setUsers] = useState([]);
+  const [newUser, setNewUser] = useState({
+    username: '',
+    email: '',
+    password: '',
+    confirmPassword: '',
+    role: 'viewer',
+  });
+
+const [creatingUser, setCreatingUser] = useState(false);
   const [cashLogs, setCashLogs] = useState([]);
   const [autoCount, setAutoCount] = useState(30);
   const [motoCount, setMotoCount] = useState(5);
@@ -83,6 +97,14 @@ export default function AdminPage() {
   const [historyOpen, setHistoryOpen] = useState(false);
   const [blacklistEntries, setBlacklistEntries] = useState([]);
   const [blacklistLoading, setBlacklistLoading] = useState(true);
+
+  const logsRef = useMemo(() => {
+      if (!parkingLotId) {
+        return null;
+      }
+    
+      return parkingLotLogsRef(parkingLotId);
+    }, [parkingLotId]);
 
   const [mobileSections, setMobileSections] = useState({
     cash: true,
@@ -99,107 +121,146 @@ export default function AdminPage() {
     }));
   }
 
-  useEffect(() => {
-    setBlacklistLoading(true);
-
-    const unsubscribe = listenBlacklist(
-      (entries) => {
-        setBlacklistEntries(entries);
-        setBlacklistLoading(false);
-      },
-      (error) => {
-        console.error('Error leyendo Black List:', error);
-        showToast('No se pudo cargar la Black List.');
-        setBlacklistLoading(false);
-      }
-    );
-
-    return () => unsubscribe();
-  }, [showToast]);
-
-  useEffect(() => {
-    const unsubscribe = db.collection('users').onSnapshot(
-      (snapshot) => {
-        const activeUsers = snapshot.docs
-          .map((doc) => ({
-            uid: doc.id,
-            ...doc.data(),
-          }))
-          .filter((item) => item.active !== false)
-          .sort((a, b) =>
-            String(a.username || '').localeCompare(String(b.username || ''))
-          );
-
-        setUsers(activeUsers);
-      },
-      (error) => {
-        console.error(error);
-        showToast('No se pudieron cargar los usuarios. Revisá las reglas de Firestore.');
-      }
-    );
-
-    return () => unsubscribe();
-  }, [showToast]);
-
-  useEffect(() => {
-    const { start, end } = todayRange();
-
-    const unsubscribe = db
-      .collection(LOGS_COLLECTION)
-      .where('endTimestamp', '>=', start)
-      .where('endTimestamp', '<', end)
-      .onSnapshot(
-        (snapshot) => {
-          setCashLogs(snapshot.docs.map((doc) => doc.data() || {}));
-        },
-        (error) => {
-          console.error('Error leyendo caja del día:', error);
-          showToast('No se pudo leer la caja del día.');
-        }
-      );
-
-    return () => unsubscribe();
-  }, [showToast]);
-
-  async function loadSpotSettings() {
-    try {
-      const settingsSnap = await db.doc(SETTINGS_DOC).get();
-
-      if (settingsSnap.exists) {
-        const data = settingsSnap.data() || {};
-        setAutoCount(Number(data.autoCount ?? 30));
-        setMotoCount(Number(data.motoCount ?? 5));
-        return;
-      }
-
-      const qs = await db.collection(SPOTS_COLLECTION).get();
-
-      let auto = 0;
-      let moto = 0;
-
-      qs.docs.forEach((doc) => {
-        const data = doc.data() || {};
-        const id = String(data.id || doc.id);
-
-        if ((data.type || '').toLowerCase() === 'moto' || id.startsWith('M')) {
-          moto += 1;
-        } else {
-          auto += 1;
-        }
-      });
-
-      setAutoCount(auto || 30);
-      setMotoCount(moto || 5);
-    } catch (error) {
-      console.error(error);
-      setAutoCount(30);
-      setMotoCount(5);
-    }
+useEffect(() => {
+  if (!parkingLotId) {
+    setBlacklistEntries([]);
+    setBlacklistLoading(false);
+    return undefined;
   }
 
-  useEffect(() => {
-    loadSpotSettings();
-  }, []);
+  setBlacklistLoading(true);
+
+  const unsubscribe = listenBlacklist(
+    parkingLotId,
+    (entries) => {
+      setBlacklistEntries(entries);
+      setBlacklistLoading(false);
+    },
+    (error) => {
+      console.error('Error leyendo Black List:', error);
+      showToast('No se pudo cargar la Black List.');
+      setBlacklistLoading(false);
+    }
+  );
+
+  return () => unsubscribe();
+}, [parkingLotId, showToast]);
+
+useEffect(() => {
+  if (!parkingLotId) {
+    setUsers([]);
+    return undefined;
+  }
+
+  const unsubscribe = parkingLotUsersQuery(
+    parkingLotId
+  ).onSnapshot(
+    (snapshot) => {
+      const activeUsers = snapshot.docs
+        .map((doc) => ({
+          uid: doc.id,
+          ...doc.data(),
+        }))
+        .filter((item) => item.active !== false)
+        .sort((a, b) =>
+          String(a.username || '').localeCompare(
+            String(b.username || '')
+          )
+        );
+
+      setUsers(activeUsers);
+    },
+    (error) => {
+      console.error('Error leyendo usuarios:', error);
+
+      showToast(
+        'No se pudieron cargar los usuarios de esta playa.'
+      );
+    }
+  );
+
+  return () => unsubscribe();
+}, [parkingLotId, showToast]);
+
+useEffect(() => {
+  if (!logsRef) {
+    setCashLogs([]);
+    return undefined;
+  }
+
+  const { start, end } = todayRange();
+
+  const unsubscribe = logsRef
+    .where('endTimestamp', '>=', start)
+    .where('endTimestamp', '<', end)
+    .onSnapshot(
+      (snapshot) => {
+        setCashLogs(snapshot.docs.map((doc) => doc.data() || {}));
+      },
+      (error) => {
+        console.error('Error leyendo caja del día:', error);
+        showToast('No se pudo leer la caja del día.');
+      }
+    );
+
+  return () => unsubscribe();
+}, [logsRef, showToast]);
+
+async function loadSpotSettings() {
+  if (!parkingLotId) {
+    setAutoCount(30);
+    setMotoCount(5);
+    return;
+  }
+
+  try {
+    const settingsRef =
+      parkingLotSettingsDocRef(parkingLotId);
+
+    const spotsRef =
+      parkingLotSpotsRef(parkingLotId);
+
+    const settingsSnap = await settingsRef.get();
+
+    if (settingsSnap.exists) {
+      const data = settingsSnap.data() || {};
+
+      setAutoCount(Number(data.autoCount ?? 30));
+      setMotoCount(Number(data.motoCount ?? 5));
+      return;
+    }
+
+    const snapshot = await spotsRef.get();
+
+    let auto = 0;
+    let moto = 0;
+
+    snapshot.docs.forEach((doc) => {
+      const data = doc.data() || {};
+      const id = String(data.id || doc.id);
+
+      if (
+        String(data.type || '').toLowerCase() === 'moto' ||
+        id.startsWith('M')
+      ) {
+        moto += 1;
+      } else {
+        auto += 1;
+      }
+    });
+
+    setAutoCount(auto || 30);
+    setMotoCount(moto || 5);
+  } catch (error) {
+    console.error('Error cargando configuración de plazas:', error);
+    setAutoCount(30);
+    setMotoCount(5);
+  }
+}
+
+    useEffect(() => {
+      loadSpotSettings();
+    }, [parkingLotId]);
 
   const summary = useMemo(() => {
     let cash = 0;
@@ -248,6 +309,11 @@ export default function AdminPage() {
   async function applySpotConfiguration(event) {
     event.preventDefault();
 
+      if (!parkingLotId) {
+      showToast('No hay una playa válida asignada.');
+      return;
+    }
+
     const auto = Number(autoCount);
     const moto = Number(motoCount);
 
@@ -257,10 +323,13 @@ export default function AdminPage() {
     }
 
     try {
+      const spotsRef = parkingLotSpotsRef(parkingLotId);
+      const settingsRef = parkingLotSettingsDocRef(parkingLotId);
+
       const ids = desiredSpotIds(auto, moto);
       const desired = new Set(ids);
 
-      const snapshot = await db.collection(SPOTS_COLLECTION).get();
+      const snapshot = await spotsRef.get();
       const existing = new Map(
         snapshot.docs.map((doc) => [doc.id, doc.data() || {}])
       );
@@ -282,7 +351,7 @@ export default function AdminPage() {
       const batch = db.batch();
 
       ids.forEach((id) => {
-        const ref = db.collection(SPOTS_COLLECTION).doc(id);
+        const ref = spotsRef.doc(id);
 
         if (!existing.has(id)) {
           batch.set(ref, defaultSpotData(id));
@@ -313,7 +382,7 @@ export default function AdminPage() {
       });
 
       batch.set(
-        db.doc(SETTINGS_DOC),
+        settingsRef,
         {
           autoCount: auto,
           motoCount: moto,
@@ -332,6 +401,45 @@ export default function AdminPage() {
       showToast('No se pudo aplicar la configuración de plazas.');
     }
   }
+
+  async function createUser(event) {
+  event.preventDefault();
+
+  if (creatingUser) {
+    return;
+  }
+
+  if (newUser.password !== newUser.confirmPassword) {
+    showToast('Las contraseñas no coinciden.');
+    return;
+  }
+
+  try {
+    setCreatingUser(true);
+
+    await createParkingLotUser({
+      username: newUser.username,
+      email: newUser.email,
+      password: newUser.password,
+      role: newUser.role,
+    });
+
+    showToast('Usuario creado correctamente.');
+
+    setNewUser({
+      username: '',
+      email: '',
+      password: '',
+      confirmPassword: '',
+      role: 'viewer',
+    });
+  } catch (error) {
+    console.error(error);
+    showToast(error.message);
+  } finally {
+    setCreatingUser(false);
+  }
+}
 
   async function updateRole(uid, role) {
     try {
@@ -394,6 +502,7 @@ export default function AdminPage() {
 
     try {
       await addBlacklistEntry({
+        parkingLotId,
         plate,
         reason,
         notes,
@@ -410,11 +519,12 @@ export default function AdminPage() {
 
   async function toggleBlacklist(item) {
     try {
-      await setBlacklistActive(
-        item.plateNormalized || item.id,
-        item.active === false,
-        user
-      );
+        await setBlacklistActive(
+          parkingLotId,
+          item.plateNormalized || item.id,
+          item.active === false,
+          user
+        );
 
       showToast(item.active === false ? 'Patente activada.' : 'Patente desactivada.');
     } catch (error) {
@@ -428,7 +538,10 @@ export default function AdminPage() {
     if (!ok) return;
 
     try {
-      await deleteBlacklistEntry(item.plateNormalized || item.id);
+      await deleteBlacklistEntry(
+          parkingLotId,
+          item.plateNormalized || item.id
+        );
       showToast('Patente eliminada de Black List.');
     } catch (error) {
       console.error(error);
@@ -566,15 +679,119 @@ export default function AdminPage() {
               open={mobileSections.users}
               onToggle={toggleMobileSection}
             >
-              <div className="section-head">
-                <div>
-                  <h3>Usuarios registrados</h3>
-                  <p className="muted">
-                    Los usuarios se crean desde registro. Desde acá modificamos roles o eliminamos
-                    cuentas.
-                  </p>
-                </div>
+            <div className="section-head">
+              <div>
+                <h3>Usuarios registrados</h3>
+                <p className="muted">
+                  Creá usuarios para esta playa y administrá sus roles.
+                </p>
               </div>
+            </div>
+                          
+            <form
+              className="config-form"
+              onSubmit={createUser}
+            >
+              <label className="form-field">
+                <span>Nombre</span>
+                <input
+                  type="text"
+                  value={newUser.username}
+                  onChange={(event) =>
+                    setNewUser((current) => ({
+                      ...current,
+                      username: event.target.value,
+                    }))
+                  }
+                  placeholder="Ej: Juan Pérez"
+                  autoComplete="name"
+                  required
+                />
+              </label>
+                
+              <label className="form-field">
+                <span>Email</span>
+                <input
+                  type="email"
+                  value={newUser.email}
+                  onChange={(event) =>
+                    setNewUser((current) => ({
+                      ...current,
+                      email: event.target.value,
+                    }))
+                  }
+                  placeholder="Ej: usuario@email.com"
+                  autoComplete="email"
+                  required
+                />
+              </label>
+                
+              <label className="form-field">
+                <span>Contraseña temporal</span>
+                <input
+                  type="password"
+                  value={newUser.password}
+                  onChange={(event) =>
+                    setNewUser((current) => ({
+                      ...current,
+                      password: event.target.value,
+                    }))
+                  }
+                  minLength="6"
+                  autoComplete="new-password"
+                  required
+                />
+              </label>
+                
+              <label className="form-field">
+                <span>Confirmar contraseña</span>
+                <input
+                  type="password"
+                  value={newUser.confirmPassword}
+                  onChange={(event) =>
+                    setNewUser((current) => ({
+                      ...current,
+                      confirmPassword: event.target.value,
+                    }))
+                  }
+                  minLength="6"
+                  autoComplete="new-password"
+                  required
+                />
+              </label>
+                
+              <label className="form-field">
+                <span>Rol</span>
+                <select
+                  value={newUser.role}
+                  onChange={(event) =>
+                    setNewUser((current) => ({
+                      ...current,
+                      role: event.target.value,
+                    }))
+                  }
+                  required
+                >
+                  <option value="viewer">Viewer</option>
+                  <option value="user">User</option>
+                  <option value="admin">Admin</option>
+                </select>
+              </label>
+                
+              <button
+                className="primary-btn"
+                type="submit"
+                disabled={creatingUser}
+              >
+                {creatingUser
+                  ? 'Creando usuario...'
+                  : 'Crear usuario'}
+              </button>
+            </form>
+                
+            <p className="demo-note">
+              El usuario se creará automáticamente dentro de esta playa.
+            </p>
 
               <div className="users-table">
                 {!users.length ? (

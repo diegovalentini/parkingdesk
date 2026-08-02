@@ -1,0 +1,177 @@
+<!doctype html>
+<html lang="es">
+  <head>
+    <meta charset="UTF-8" />
+    <meta
+      name="viewport"
+      content="width=device-width, initial-scale=1.0"
+    />
+
+    <title>Estacionamiento Azul — Nueva web</title>
+
+    <meta
+      http-equiv="refresh"
+      content="5;url=https://parkingdesk.web.app"
+    />
+
+    <style>
+      * {
+        box-sizing: border-box;
+      }
+
+      body {
+        min-height: 100vh;
+        margin: 0;
+        display: grid;
+        place-items: center;
+        padding: 24px;
+        font-family:
+          system-ui,
+          -apple-system,
+          BlinkMacSystemFont,
+          "Segoe UI",
+          sans-serif;
+        color: #f5f7ff;
+        background:
+          radial-gradient(
+            circle at top,
+            #182641 0%,
+            #0d1728 45%,
+            #080f1c 100%
+          );
+      }
+
+      .card {
+        width: min(560px, 100%);
+        padding: 42px;
+        text-align: center;
+        background: #162238;
+        border: 1px solid #30415e;
+        border-radius: 22px;
+        box-shadow: 0 24px 60px rgba(0, 0, 0, 0.35);
+      }
+
+      .eyebrow {
+        margin: 0 0 12px;
+        color: #79a2ff;
+        font-size: 13px;
+        font-weight: 800;
+        letter-spacing: 0.12em;
+        text-transform: uppercase;
+      }
+
+      h1 {
+        margin: 0 0 18px;
+        font-size: clamp(30px, 7vw, 46px);
+        line-height: 1.08;
+      }
+
+      .message {
+        margin: 0 auto;
+        max-width: 430px;
+        color: #b9c5dc;
+        font-size: 17px;
+        line-height: 1.6;
+      }
+
+      .countdown {
+        margin: 28px 0;
+        color: #ffffff;
+        font-size: 18px;
+        font-weight: 700;
+      }
+
+      #seconds {
+        display: inline-grid;
+        place-items: center;
+        width: 38px;
+        height: 38px;
+        margin-left: 5px;
+        color: #ffffff;
+        background: #315fe9;
+        border-radius: 50%;
+      }
+
+      .button {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        min-height: 52px;
+        padding: 0 26px;
+        color: #ffffff;
+        font-size: 16px;
+        font-weight: 800;
+        text-decoration: none;
+        background: linear-gradient(
+          135deg,
+          #3378f6,
+          #6255ed
+        );
+        border-radius: 13px;
+        box-shadow: 0 12px 28px rgba(51, 120, 246, 0.3);
+      }
+
+      .note {
+        margin: 24px 0 0;
+        color: #8290aa;
+        font-size: 13px;
+        line-height: 1.5;
+      }
+
+      @media (max-width: 520px) {
+        .card {
+          padding: 32px 22px;
+        }
+      }
+    </style>
+  </head>
+
+  <body>
+    <main class="card">
+      <p class="eyebrow">Sistema actualizado</p>
+
+      <h1>Estacionamiento Azul</h1>
+
+      <p class="message">
+        La aplicación fue trasladada a ParkingDesk.
+        Utilizá el nuevo enlace para acceder al sistema.
+      </p>
+
+      <p class="countdown">
+        Redirigiendo en
+        <span id="seconds">5</span>
+        segundos
+      </p>
+
+      <a
+        class="button"
+        href="https://parkingdesk.web.app"
+      >
+        Ir ahora a ParkingDesk
+      </a>
+
+      <p class="note">
+        Reemplazá el enlace antiguo de tus favoritos por
+        parkingdesk.web.app.
+      </p>
+    </main>
+
+    <script>
+      const destination = "https://parkingdesk.web.app";
+      const secondsElement =
+        document.getElementById("seconds");
+
+      let remainingSeconds = 5;
+
+      const countdown = window.setInterval(() => {
+        remainingSeconds -= 1;
+        secondsElement.textContent = remainingSeconds;
+
+        if (remainingSeconds <= 0) {
+          window.clearInterval(countdown);
+          window.location.replace(destination);
+        }
+      }, 1000);
+    </script>
+  </body>
+</html>

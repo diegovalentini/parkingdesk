@@ -1,0 +1,11 @@
+{
+  "hosting": {
+    "site": "estacion-azul-web",
+    "public": "legacy-redirect",
+    "ignore": [
+      "firebase.legacy.json",
+      "**/.*",
+      "**/node_modules/**"
+    ]
+  }
+}

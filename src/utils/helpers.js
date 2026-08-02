@@ -1,6 +1,4 @@
 export const THEME_KEY = 'ea_theme';
-export const SPOTS_COLLECTION = 'spots';
-export const LOGS_COLLECTION = 'logs';
 export const SETTINGS_DOC = 'settings/config';
 export const BLACKLIST_KEY = 'ea_demo_blacklist_v1';
 export const LOGS_KEY = 'ea_demo_logs_v1';

@@ -8,12 +8,15 @@ import {
   formatDateTime,
   formatDuration,
   formatMoney,
-  LOGS_COLLECTION,
   normalizePlate,
   sortSpots,
-  SPOTS_COLLECTION,
   spotFromDoc,
 } from '../utils/helpers';
+
+import {
+  parkingLotLogsRef,
+  parkingLotSpotsRef,
+} from '../firebase/parkingLotRefs';
 import { getActiveBlacklistEntry } from '../utils/blacklistService';
 
 function getSpotStatus(spot) {
@@ -99,8 +102,10 @@ function buildArgentinaTimestamp(originalTimestamp, timeValue) {
 }
 
 export default function ParkingPage() {
-  const { user } = useAuth();
+  const { user, parkingLotId } = useAuth();
   const { showToast } = useToast();
+
+  const [parkingLotName, setParkingLotName] = useState('ParkingDesk');
 
   const [spots, setSpots] = useState([]);
   const [search, setSearch] = useState('');
@@ -108,19 +113,70 @@ export default function ParkingPage() {
   const [moveTarget, setMoveTarget] = useState(null);
   const [startTimeTarget, setStartTimeTarget] = useState(null);
 
-  useEffect(() => {
-    const unsubscribe = db.collection(SPOTS_COLLECTION).onSnapshot(
-      (snapshot) => {
-        setSpots(sortSpots(snapshot.docs.map(spotFromDoc)));
-      },
-      (error) => {
-        console.error('Error leyendo plazas:', error);
-        showToast('No se pudieron cargar las plazas. Revisá las reglas de Firestore.');
+  const spotsRef = useMemo(() => {
+      if (!parkingLotId) {
+        return null;
       }
-    );
+    
+      return parkingLotSpotsRef(parkingLotId);
+    }, [parkingLotId]);
 
-    return () => unsubscribe();
-  }, [showToast]);
+    const logsRef = useMemo(() => {
+      if (!parkingLotId) {
+        return null;
+      }
+    
+      return parkingLotLogsRef(parkingLotId);
+    }, [parkingLotId]);
+
+    useEffect(() => {
+      if (!spotsRef) {
+        setSpots([]);
+        return undefined;
+      }
+    
+      const unsubscribe = spotsRef.onSnapshot(
+        (snapshot) => {
+          setSpots(
+            sortSpots(snapshot.docs.map(spotFromDoc))
+          );
+        },
+        (error) => {
+          console.error('Error leyendo plazas:', error);
+        
+          showToast(
+            'No se pudieron cargar las plazas. Revisá las reglas de Firestore.'
+          );
+        }
+      );
+    
+      return () => unsubscribe();
+    }, [spotsRef, showToast]);
+
+    useEffect(() => {
+  if (!parkingLotId) {
+    setParkingLotName('ParkingDesk');
+    return;
+  }
+
+  const unsubscribe = db
+    .collection('parkingLots')
+    .doc(parkingLotId)
+    .onSnapshot((doc) => {
+      if (!doc.exists) {
+        setParkingLotName('ParkingDesk');
+        return;
+      }
+
+      const data = doc.data();
+
+      setParkingLotName(
+        data?.name || 'ParkingDesk'
+      );
+    });
+
+  return () => unsubscribe();
+  }, [parkingLotId]);
 
   const visibleSpots = useMemo(() => {
     const q = normalizePlate(search);
@@ -149,8 +205,12 @@ export default function ParkingPage() {
     }
 
     try {
-      const duplicates = await db
-        .collection(SPOTS_COLLECTION)
+        if (!spotsRef) {
+          showToast('No hay una playa válida asignada.');
+          return;
+        }
+
+        const duplicates = await spotsRef
         .where('occupied', '==', true)
         .where('plateNormalized', '==', normalized)
         .limit(1)
@@ -166,7 +226,7 @@ export default function ParkingPage() {
         return;
       }
 
-      const blacklistEntry = await getActiveBlacklistEntry(displayPlate);
+      const blacklistEntry = await getActiveBlacklistEntry(parkingLotId, displayPlate)
 
       if (blacklistEntry) {
         const message = [
@@ -189,7 +249,7 @@ export default function ParkingPage() {
         }
       }
 
-      await db.collection(SPOTS_COLLECTION).doc(spotId).update({
+      await spotsRef.doc(spotId).update({
         occupied: true,
         occupantName: displayPlate,
         plateNormalized: normalized,
@@ -220,8 +280,13 @@ export default function ParkingPage() {
     }
 
     try {
-      const spotRef = db.collection(SPOTS_COLLECTION).doc(spotId);
-      const logRef = db.collection(LOGS_COLLECTION).doc();
+      if (!spotsRef || !logsRef) {
+        showToast('No hay una playa válida asignada.');
+        return;
+      }
+
+      const spotRef = spotsRef.doc(spotId);
+      const logRef = logsRef.doc();
 
       let releasedSpot = null;
 
@@ -304,8 +369,12 @@ export default function ParkingPage() {
     }
 
     try {
-      const duplicates = await db
-        .collection(SPOTS_COLLECTION)
+        if (!spotsRef) {
+          showToast('No hay una playa válida asignada.');
+          return;
+        }
+
+        const duplicates = await spotsRef
         .where('occupied', '==', true)
         .where('plateNormalized', '==', normalized)
         .limit(2)
@@ -323,7 +392,7 @@ export default function ParkingPage() {
         return;
       }
 
-      const blacklistEntry = await getActiveBlacklistEntry(displayPlate);
+      const blacklistEntry = await getActiveBlacklistEntry(parkingLotId, displayPlate)
 
       if (blacklistEntry) {
         const message = [
@@ -346,7 +415,7 @@ export default function ParkingPage() {
         }
       }
 
-      await db.collection(SPOTS_COLLECTION).doc(spot.id).update({
+      await spotsRef.doc(spot.id).update({
         occupantName: displayPlate,
         plateNormalized: normalized,
         updatedAt: firebase.firestore.FieldValue.serverTimestamp(),
@@ -392,8 +461,13 @@ async function confirmMoveSpot(toSpotId) {
   }
 
   try {
-    const fromRef = db.collection(SPOTS_COLLECTION).doc(moveTarget.id);
-    const toRef = db.collection(SPOTS_COLLECTION).doc(toSpotId);
+    if (!spotsRef) {
+      showToast('No hay una playa válida asignada.');
+      return;
+    }
+
+    const fromRef = spotsRef.doc(moveTarget.id);
+    const toRef = spotsRef.doc(toSpotId);
 
     await db.runTransaction(async (transaction) => {
       const fromSnap = await transaction.get(fromRef);
@@ -510,9 +584,12 @@ async function saveSpotStartTime(timeValue) {
   }
 
   try {
-    const spotRef = db
-      .collection(SPOTS_COLLECTION)
-      .doc(startTimeTarget.id);
+    if (!spotsRef) {
+      showToast('No hay una playa válida asignada.');
+      return false;
+    }
+
+    const spotRef = spotsRef.doc(startTimeTarget.id);
 
     const spotSnapshot = await spotRef.get();
 
@@ -561,7 +638,12 @@ async function setSpotKey(spotId, hasKey) {
   }
 
   try {
-    await db.collection(SPOTS_COLLECTION).doc(spotId).update({
+    if (!spotsRef) {
+      showToast('No hay una playa válida asignada.');
+      return;
+    }
+
+    await spotsRef.doc(spotId).update({
       hasKey,
       updatedAt: firebase.firestore.FieldValue.serverTimestamp(),
     });
@@ -597,7 +679,12 @@ async function setSpotBlocked(spotId, blocked) {
   }
 
   try {
-    await db.collection(SPOTS_COLLECTION).doc(spotId).update({
+    if (!spotsRef) {
+        showToast('No hay una playa válida asignada.');
+        return;
+      }
+
+      await spotsRef.doc(spotId).update({
       blocked,
       updatedAt: firebase.firestore.FieldValue.serverTimestamp(),
     });
@@ -626,7 +713,10 @@ async function setSpotBlocked(spotId, blocked) {
 
   return (
     <>
-      <Topbar title="Estacionamiento Azul" links={links} />
+    <Topbar
+      title={parkingLotName}
+      links={links}
+    />
 
       <main className="layout">
         <section className="hero-card">

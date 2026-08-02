@@ -6,13 +6,13 @@ import Modal from '../components/Modal';
 import { useToast } from '../components/Toast';
 import { db, firebase } from '../firebase/firebase';
 import { useAuth } from '../auth/AuthContext';
+import { parkingLotLogsRef } from '../firebase/parkingLotRefs';
 import {
   formatDuration,
   formatLongDate,
   formatMoney,
   formatMonth,
   formatTime,
-  LOGS_COLLECTION,
   logFromDoc,
   toDateKey,
 } from '../utils/helpers';
@@ -156,7 +156,7 @@ function buildDailyPdfStats(logs) {
 }
 
 export default function DailyReportPage() {
-  const { user } = useAuth();
+  const { user, parkingLotId } = useAuth();
   const { showToast } = useToast();
 
   const [calendarDate, setCalendarDate] = useState(() => todayAR());
@@ -166,19 +166,31 @@ export default function DailyReportPage() {
   const [editing, setEditing] = useState(null);
   const [deleteTarget, setDeleteTarget] = useState(null);
 
+  const logsRef = useMemo(() => {
+      if (!parkingLotId) {
+        return null;
+      }
+    
+      return parkingLotLogsRef(parkingLotId);
+    }, [parkingLotId]);
+
   async function refresh() {
     try {
       const mr = monthRange(calendarDate);
       const dr = dayRange(selectedDate);
 
-      const monthSnap = await db
-        .collection(LOGS_COLLECTION)
+      if (!logsRef) {
+        setMonthLogs([]);
+        setSelectedLogs([]);
+        return;
+      }
+
+        const monthSnap = await logsRef
         .where('endTimestamp', '>=', mr.start)
         .where('endTimestamp', '<', mr.end)
         .get();
 
-      const daySnap = await db
-        .collection(LOGS_COLLECTION)
+        const daySnap = await logsRef
         .where('endTimestamp', '>=', dr.start)
         .where('endTimestamp', '<', dr.end)
         .get();
@@ -202,40 +214,58 @@ export default function DailyReportPage() {
 
 
 useEffect(() => {
+  if (!logsRef) {
+    setMonthLogs([]);
+    return undefined;
+  }
+
   const { start, end } = monthRange(calendarDate);
-  const unsub = db
-    .collection(LOGS_COLLECTION)
+
+  const unsubscribe = logsRef
     .where('endTimestamp', '>=', start)
     .where('endTimestamp', '<', end)
     .onSnapshot(
-      (snap) => setMonthLogs(
-        snap.docs.map(logFromDoc).sort((a, b) => (b.endTimestamp || 0) - (a.endTimestamp || 0))
-      ),
+      (snap) =>
+        setMonthLogs(
+          snap.docs
+            .map(logFromDoc)
+            .sort((a, b) => (b.endTimestamp || 0) - (a.endTimestamp || 0))
+        ),
       (err) => {
         console.error(err);
         showToast('No se pudo cargar el historial del mes.');
       }
     );
-  return () => unsub();
-}, [calendarDate]);
+
+  return () => unsubscribe();
+}, [calendarDate, logsRef, showToast]);
 
 useEffect(() => {
+  if (!logsRef) {
+    setSelectedLogs([]);
+    return undefined;
+  }
+
   const { start, end } = dayRange(selectedDate);
-  const unsub = db
-    .collection(LOGS_COLLECTION)
+
+  const unsubscribe = logsRef
     .where('endTimestamp', '>=', start)
     .where('endTimestamp', '<', end)
     .onSnapshot(
-      (snap) => setSelectedLogs(
-        snap.docs.map(logFromDoc).sort((a, b) => (b.endTimestamp || 0) - (a.endTimestamp || 0))
-      ),
+      (snap) =>
+        setSelectedLogs(
+          snap.docs
+            .map(logFromDoc)
+            .sort((a, b) => (b.endTimestamp || 0) - (a.endTimestamp || 0))
+        ),
       (err) => {
         console.error(err);
         showToast('No se pudo cargar el historial del día.');
       }
     );
-  return () => unsub();
-}, [selectedDate]);
+
+  return () => unsubscribe();
+}, [selectedDate, logsRef, showToast]);
 
   const counts = useMemo(() => {
     const map = new Map();
@@ -275,7 +305,12 @@ useEffect(() => {
 
   async function saveLog(logId, changes) {
     try {
-      await db.collection(LOGS_COLLECTION).doc(logId).set(
+      if (!logsRef) {
+          showToast('No hay una playa válida asignada.');
+          return;
+        }
+
+        await logsRef.doc(logId).set(
         {
           ...changes,
           editedBy: user?.username || user?.email || 'Usuario',
@@ -301,7 +336,12 @@ async function confirmDeleteLog() {
   if (!deleteTarget?.id) return;
 
   try {
-    await db.collection(LOGS_COLLECTION).doc(deleteTarget.id).delete();
+    if (!logsRef) {
+      showToast('No hay una playa válida asignada.');
+      return;
+    }
+    
+    await logsRef.doc(deleteTarget.id).delete();
     setDeleteTarget(null);
     showToast('Registro eliminado.');
   } catch (error) {

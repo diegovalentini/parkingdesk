@@ -25,6 +25,17 @@ service cloud.firestore {
       return isActiveUser() ? myUserDoc().data.role : null;
     }
 
+    function userParkingLotId() {
+      return isActiveUser()
+        ? myUserDoc().data.parkingLotId
+        : null;
+    }
+
+    function belongsToParkingLot(parkingLotId) {
+      return isActiveUser()
+        && userParkingLotId() == parkingLotId;
+    }
+
     function isViewer() {
       return isActiveUser() && role() == 'viewer';
     }
@@ -37,6 +48,10 @@ service cloud.firestore {
       return isActiveUser() && role() == 'admin';
     }
 
+    function isPlatformAdmin() {
+      return isActiveUser() && role() == 'platform_admin';
+    }
+
     function canUseApp() {
       return isViewer() || isUser() || isAdmin();
     }
@@ -46,55 +61,122 @@ service cloud.firestore {
     }
 
     match /users/{userId} {
-      allow read: if isAdmin() || (signedIn() && request.auth.uid == userId);
-      allow create: if signedIn() && request.auth.uid == userId;
-      allow update: if isAdmin()
+      allow read: if
+        isPlatformAdmin()
         || (
           signedIn()
           && request.auth.uid == userId
-          && !request.resource.data.diff(resource.data).changedKeys().hasAny(['role'])
+        )
+        || (
+          isAdmin()
+          && resource.data.parkingLotId == userParkingLotId()
         );
+
+      // Los usuarios solo pueden crearse mediante
+      // Cloud Functions con Firebase Admin SDK.
+      allow create: if false;
+
+      // El platform_admin puede administrar perfiles.
+      allow update: if
+        isPlatformAdmin()
+
+        // Un admin normal solo puede modificar usuarios
+        // pertenecientes a su misma playa.
+        || (
+          isAdmin()
+          && resource.data.parkingLotId == userParkingLotId()
+          && request.resource.data.parkingLotId
+            == resource.data.parkingLotId
+          && request.resource.data.role in [
+            'viewer',
+            'user',
+            'admin'
+          ]
+          && request.resource.data
+            .diff(resource.data)
+            .changedKeys()
+            .hasOnly([
+              'role',
+              'active',
+              'updatedAt',
+              'updatedByUid',
+              'disabledByUid'
+            ])
+        )
+
+        // Un usuario solo puede actualizar su nombre.
+        || (
+          signedIn()
+          && request.auth.uid == userId
+          && request.resource.data
+            .diff(resource.data)
+            .changedKeys()
+            .hasOnly([
+              'username',
+              'updatedAt'
+            ])
+        );
+
       allow delete: if false;
     }
 
-    match /settings/{docId} {
-      allow read: if canUseApp();
-      allow create, update, delete: if isAdmin();
+    match /parkingLots/{parkingLotId} {
+      allow read: if isPlatformAdmin()
+        || belongsToParkingLot(parkingLotId);
+
+      allow create, update, delete: if isPlatformAdmin();
     }
 
-    match /blacklist/{plateId} {
-      allow read: if isActiveUser();
-      allow create, update, delete: if isAdmin();
+    match /parkingLots/{parkingLotId}/blacklist/{plateId} {
+      allow read: if belongsToParkingLot(parkingLotId);
+
+      allow create, update, delete: if isAdmin()
+        && belongsToParkingLot(parkingLotId);
+    }
+    
+    match /parkingLots/{parkingLotId}/settings/{docId} {
+      allow read: if belongsToParkingLot(parkingLotId);
+
+      allow create, update, delete: if isAdmin()
+        && belongsToParkingLot(parkingLotId);
     }
 
-    match /spots/{spotId} {
-      allow read: if canUseApp();
-      allow create, delete: if isAdmin();
-      allow update: if canOperate();
+    match /parkingLots/{parkingLotId}/spots/{spotId} {
+      allow read: if belongsToParkingLot(parkingLotId);
+
+      allow create, delete: if isAdmin()
+        && belongsToParkingLot(parkingLotId);
+
+      allow update: if canOperate()
+        && belongsToParkingLot(parkingLotId);
     }
 
-    match /logs/{logId} {
-      allow read: if canOperate();
-      allow create: if canOperate();
+    match /parkingLots/{parkingLotId}/logs/{logId} {
+      allow read: if canOperate()
+        && belongsToParkingLot(parkingLotId);
 
-      allow update: if isAdmin()
-        || (
-          isUser()
-          && request.resource.data.diff(resource.data).changedKeys().hasOnly([
-            'payMethod',
-            'updatedAt',
-            'editedMethodBy',
-            'editedMethodByUid',
-            'editedMethodAt'
-          ])
-        );
+      allow create: if canOperate()
+        && belongsToParkingLot(parkingLotId);
 
-      allow delete: if isAdmin();
+      allow update: if (
+        isAdmin()
+        && belongsToParkingLot(parkingLotId)
+      ) || (
+        isUser()
+        && belongsToParkingLot(parkingLotId)
+        && request.resource.data.diff(resource.data).changedKeys().hasOnly([
+          'payMethod',
+          'updatedAt',
+          'editedMethodBy',
+          'editedMethodByUid',
+          'editedMethodAt'
+        ])
+      );
+
+      allow delete: if isAdmin()
+        && belongsToParkingLot(parkingLotId);
     }
 
-    match /daily_logs/{dateId}/{document=**} {
-      allow read, write: if false;
-    }
 
     match /{document=**} {
       allow read, write: if false;

@@ -3,27 +3,69 @@ import Topbar from '../components/Topbar';
 import Modal from '../components/Modal';
 import { useAuth } from '../auth/AuthContext';
 import { useToast } from '../components/Toast';
-import { db, firebase } from '../firebase/firebase';
-import { formatDuration, formatMoney, formatTime, LOGS_COLLECTION, logFromDoc, normalizeText, todayRange } from '../utils/helpers';
+import { firebase } from '../firebase/firebase';
+import {
+  formatDuration,
+  formatMoney,
+  formatTime,
+  logFromDoc,
+  normalizeText,
+  todayRange,
+} from '../utils/helpers';
+
+import {
+  parkingLotLogsRef,
+} from '../firebase/parkingLotRefs';
 
 export default function HistoryPage() {
-  const { user } = useAuth();
+  const { user, parkingLotId } = useAuth();
   const { showToast } = useToast();
   const [logs, setLogs] = useState([]);
   const [search, setSearch] = useState('');
   const [editing, setEditing] = useState(null);
   const [deleteTarget, setDeleteTarget] = useState(null);
+  const logsRef = useMemo(() => {
+      if (!parkingLotId) {
+        return null;
+      }
+    
+      return parkingLotLogsRef(parkingLotId);
+    }, [parkingLotId]);
 
-  useEffect(() => {
-    const { start, end } = todayRange();
-    const unsub = db.collection(LOGS_COLLECTION).where('endTimestamp', '>=', start).where('endTimestamp', '<', end).onSnapshot((snapshot) => {
-      setLogs(snapshot.docs.map(logFromDoc).sort((a, b) => (b.endTimestamp || 0) - (a.endTimestamp || 0)));
-    }, (error) => {
-      console.error('Error leyendo historial:', error);
-      showToast('No se pudo cargar el historial. Revisá las reglas de Firestore.');
-    });
-    return () => unsub();
-  }, [showToast]);
+useEffect(() => {
+  if (!logsRef) {
+    setLogs([]);
+    return undefined;
+  }
+
+  const { start, end } = todayRange();
+
+  const unsubscribe = logsRef
+    .where('endTimestamp', '>=', start)
+    .where('endTimestamp', '<', end)
+    .onSnapshot(
+      (snapshot) => {
+        setLogs(
+          snapshot.docs
+            .map(logFromDoc)
+            .sort(
+              (a, b) =>
+                (b.endTimestamp || 0) -
+                (a.endTimestamp || 0)
+            )
+        );
+      },
+      (error) => {
+        console.error('Error leyendo historial:', error);
+
+        showToast(
+          'No se pudo cargar el historial. Revisá las reglas de Firestore.'
+        );
+      }
+    );
+
+  return () => unsubscribe();
+}, [logsRef, showToast]);
 
   const filteredLogs = useMemo(() => {
     const q = normalizeText(search);
@@ -31,9 +73,15 @@ export default function HistoryPage() {
     return logs.filter((log) => [log.occupantName, log.closedBy].map(normalizeText).join('').includes(q));
   }, [logs, search]);
 
-  async function saveLog(logId, changes) {
-    try {
-      await db.collection(LOGS_COLLECTION).doc(logId).set({
+        async function saveLog(logId, changes) {
+          try {
+            if (!logsRef) {
+        showToast('No hay una playa válida asignada.');
+        return;
+      }
+
+      await logsRef.doc(logId).set(
+        {
         ...changes,
         editedBy: user?.username || user?.email || 'Usuario',
         editedByUid: user?.uid || null,
@@ -55,7 +103,12 @@ async function confirmDeleteLog() {
   if (!deleteTarget?.id) return;
 
   try {
-    await db.collection(LOGS_COLLECTION).doc(deleteTarget.id).delete();
+    if (!logsRef) {
+  showToast('No hay una playa válida asignada.');
+  return;
+}
+
+await logsRef.doc(deleteTarget.id).delete();
     setDeleteTarget(null);
     showToast('Registro eliminado.');
   } catch (error) {
@@ -95,7 +148,11 @@ async function confirmDeleteLog() {
       </div>
       </section>
     </main>
-    <EditHistoryModal log={editing} onClose={() => setEditing(null)} onSave={saveLog} admin={user?.role === 'admin'} />
+   <EditHistoryModal
+  log={editing}
+  onClose={() => setEditing(null)}
+  onSave={saveLog}
+  />
       <DeleteLogModal
   log={deleteTarget}
   onClose={() => setDeleteTarget(null)}
@@ -142,33 +199,181 @@ function HistoryRows({ logs, user, search, onEdit, onDelete }) {
                       <strong>{log.closedBy || '—'}</strong>
                       </div>
                       </div>
-                      <div className="history-row__actions">
-                        <button className="secondary-btn secondary-btn--small" type="button" onClick={() => onEdit({ ...log, mode: 'method' })}>Cambiar método</button>
-                        {user?.role === 'admin' ?
-                        <button className="ghost-btn secondary-btn--small" type="button" onClick={() => onEdit({ ...log, mode: 'admin' })}>Editar registro</button>
-                         : null}{user?.role === 'admin' ? 
-                         <button className="danger-btn secondary-btn--small" type="button" onClick={() => onDelete(log)}>Eliminar</button> 
-                         : null}</div></article>;
+                     <div className="history-row__actions">
+  {user?.role === 'admin' ? (
+    <>
+      <button
+        className="ghost-btn secondary-btn--small"
+        type="button"
+        onClick={() => onEdit(log)}
+      >
+        Editar registro
+      </button>
+
+      <button
+        className="danger-btn secondary-btn--small"
+        type="button"
+        onClick={() => onDelete(log)}
+      >
+        Eliminar
+      </button>
+    </>
+  ) : null}
+</div>
+</article>;
   });
 }
 
-function EditHistoryModal({ log, onClose, onSave, admin }) {
-  const [method, setMethod] = useState('EFECTIVO');
-  const [amount, setAmount] = useState('');
-  const [plate, setPlate] = useState('');
+function EditHistoryModal({
+  log,
+  onClose,
+  onSave,
+}) {
+  const [method, setMethod] =
+    useState('EFECTIVO');
+
+  const [amount, setAmount] =
+    useState('');
+
+  const [plate, setPlate] =
+    useState('');
 
   useEffect(() => {
-        if (!log) return;
-    setMethod(String(log.payMethod || '').toUpperCase().includes('MP') ? 'MP' : 'EFECTIVO');
+    if (!log) {
+      return;
+    }
+
+    setMethod(
+      String(log.payMethod || '')
+        .toUpperCase()
+        .includes('MP')
+        ? 'MP'
+        : 'EFECTIVO'
+    );
+
     setAmount(String(log.amount || ''));
     setPlate(log.occupantName || '');
   }, [log]);
 
-  if (!log) return null;
-  const fullEdit = admin && log.mode === 'admin';
-  return <Modal open={!!log} onClose={onClose} labelledBy="editLogTitle"><div className="modal-title"><span>💳</span><h3 id="editLogTitle">{fullEdit ? 'Editar registro' : 'Cambiar método'}</h3></div><div className="detail-list"><div className="detail-row"><span>Patente</span><strong>{log.occupantName || '—'}</strong></div><div className="detail-row"><span>Plaza</span><strong>{log.spotId || '—'}</strong></div><div className="detail-row"><span>Monto</span><strong>{formatMoney(log.amount)}</strong></div></div><form className="form-grid" onSubmit={(event) => { event.preventDefault(); const changes = fullEdit ? { payMethod: method, amount: Number(amount), occupantName: plate.trim().toUpperCase() } : { payMethod: method }; onSave(log.id, changes); }}>
-    {fullEdit ? <><label className="form-field"><span>Patente</span><input value={plate} onChange={(e) => setPlate(e.target.value)} required /></label><label className="form-field"><span>Monto</span><input value={amount} onChange={(e) => setAmount(e.target.value)} type="number" min="0.01" step="0.01" required /></label></> : null}
-    <label className="form-field"><span>Método de pago</span><select value={method} onChange={(e) => setMethod(e.target.value)} required><option value="EFECTIVO">Efectivo</option><option value="MP">MP</option></select></label><div className="modal-actions"><button className="ghost-btn" type="button" onClick={onClose}>Cerrar</button><button className="primary-btn" type="submit">Guardar</button></div></form></Modal>;
+  if (!log) {
+    return null;
+  }
+
+  function handleSubmit(event) {
+    event.preventDefault();
+
+    onSave(log.id, {
+      payMethod: method,
+      amount: Number(amount),
+      occupantName:
+        plate.trim().toUpperCase(),
+    });
+  }
+
+  return (
+    <Modal
+      open={!!log}
+      onClose={onClose}
+      labelledBy="editLogTitle"
+    >
+      <div className="modal-title">
+        <span>💳</span>
+        <h3 id="editLogTitle">
+          Editar registro
+        </h3>
+      </div>
+
+      <div className="detail-list">
+        <div className="detail-row">
+          <span>Patente</span>
+          <strong>
+            {log.occupantName || '—'}
+          </strong>
+        </div>
+
+        <div className="detail-row">
+          <span>Plaza</span>
+          <strong>{log.spotId || '—'}</strong>
+        </div>
+
+        <div className="detail-row">
+          <span>Monto</span>
+          <strong>
+            {formatMoney(log.amount)}
+          </strong>
+        </div>
+      </div>
+
+      <form
+        className="form-grid"
+        onSubmit={handleSubmit}
+      >
+        <label className="form-field">
+          <span>Patente</span>
+
+          <input
+            value={plate}
+            onChange={(event) =>
+              setPlate(event.target.value)
+            }
+            required
+          />
+        </label>
+
+        <label className="form-field">
+          <span>Monto</span>
+
+          <input
+            value={amount}
+            onChange={(event) =>
+              setAmount(event.target.value)
+            }
+            type="number"
+            min="0"
+            step="1"
+            required
+          />
+        </label>
+
+        <label className="form-field">
+          <span>Método de pago</span>
+
+          <select
+            value={method}
+            onChange={(event) =>
+              setMethod(event.target.value)
+            }
+            required
+          >
+            <option value="EFECTIVO">
+              Efectivo
+            </option>
+
+            <option value="MP">
+              MP
+            </option>
+          </select>
+        </label>
+
+        <div className="modal-actions">
+          <button
+            className="ghost-btn"
+            type="button"
+            onClick={onClose}
+          >
+            Cerrar
+          </button>
+
+          <button
+            className="primary-btn"
+            type="submit"
+          >
+            Guardar
+          </button>
+        </div>
+      </form>
+    </Modal>
+  );
 }
 
 function DeleteLogModal({ log, onClose, onConfirm }) {

@@ -3,12 +3,12 @@ import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
 import Topbar from '../components/Topbar';
 import { useToast } from '../components/Toast';
-import { db } from '../firebase/firebase';
+import { parkingLotLogsRef } from '../firebase/parkingLotRefs';
+import { useAuth } from '../auth/AuthContext';
 import {
   addDays,
   formatMoney,
   formatShortDate,
-  LOGS_COLLECTION,
   parseDateInput,
   sanitizePdfText,
   toDateKey,
@@ -65,11 +65,18 @@ function getRangeMillis(startDate, endDate) {
   return { start, end };
 }
 
-async function getLogsInRange(startDate, endDate) {
+async function getLogsInRange(
+  parkingLotId,
+  startDate,
+  endDate
+) {
+
+  if (!parkingLotId) {
+  return [];
+}
   const { start, end } = getRangeMillis(startDate, endDate);
 
-  const snapshot = await db
-    .collection(LOGS_COLLECTION)
+  const snapshot = await parkingLotLogsRef(parkingLotId)
     .where('endTimestamp', '>=', start)
     .where('endTimestamp', '<', end)
     .get();
@@ -80,7 +87,11 @@ async function getLogsInRange(startDate, endDate) {
     .sort((a, b) => (a.endTimestamp || 0) - (b.endTimestamp || 0));
 }
 
-async function buildReport(startDate, endDate) {
+async function buildReport(
+  parkingLotId,
+  startDate,
+  endDate
+){
   const days = [];
   const byDay = new Map();
 
@@ -93,7 +104,11 @@ async function buildReport(startDate, endDate) {
     cursor = addDays(cursor, 1);
   }
 
-  const logs = await getLogsInRange(startDate, endDate);
+ const logs = await getLogsInRange(
+  parkingLotId,
+  startDate,
+  endDate
+);
 
   const cashByUser = new Map();
   const vehicleTotals = {
@@ -186,6 +201,7 @@ function Kpi({ label, value, cls = '' }) {
 
 export default function MonthlyReportPage() {
   const { showToast } = useToast();
+  const { parkingLotId } = useAuth();
 
   const now = new Date();
 
@@ -225,7 +241,11 @@ export default function MonthlyReportPage() {
 
     try {
       setLoading(true);
-      const nextReport = await buildReport(range.startDate, range.endDate);
+      const nextReport = await buildReport(
+        parkingLotId,
+        range.startDate,
+        range.endDate
+      );
       setReport(nextReport);
 
       if (!nextReport.movements) {
