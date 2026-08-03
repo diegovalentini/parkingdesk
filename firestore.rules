@@ -158,20 +158,35 @@ service cloud.firestore {
       allow create: if canOperate()
         && belongsToParkingLot(parkingLotId);
 
-      allow update: if (
-        isAdmin()
-        && belongsToParkingLot(parkingLotId)
-      ) || (
-        isUser()
-        && belongsToParkingLot(parkingLotId)
-        && request.resource.data.diff(resource.data).changedKeys().hasOnly([
-          'payMethod',
-          'updatedAt',
-          'editedMethodBy',
-          'editedMethodByUid',
-          'editedMethodAt'
-        ])
-      );
+allow update: if (
+  isAdmin()
+  && belongsToParkingLot(parkingLotId)
+) || (
+  isUser()
+  && belongsToParkingLot(parkingLotId)
+
+  && request.resource.data.payMethod
+    != resource.data.payMethod
+
+  && request.resource.data
+    .diff(resource.data)
+    .changedKeys()
+    .hasOnly([
+      'payMethod',
+      'updatedAt',
+      'editedBy',
+      'editedByUid'
+    ])
+
+  && request.resource.data.payMethod
+    in ['EFECTIVO', 'MP']
+
+  && request.resource.data.editedByUid
+    == request.auth.uid
+
+  && request.resource.data.updatedAt
+    == request.time
+);
 
       allow delete: if isAdmin()
         && belongsToParkingLot(parkingLotId);
