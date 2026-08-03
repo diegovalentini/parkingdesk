@@ -417,12 +417,13 @@ async function loadSpotSettings() {
   try {
     setCreatingUser(true);
 
-    await createParkingLotUser({
-      username: newUser.username,
-      email: newUser.email,
-      password: newUser.password,
-      role: newUser.role,
-    });
+  await createParkingLotUser({
+  username: newUser.username,
+  email: newUser.email,
+  password: newUser.password,
+  role: newUser.role,
+  parkingLotId,
+});
 
     showToast('Usuario creado correctamente.');
 

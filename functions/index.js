@@ -262,6 +262,83 @@ async function requireParkingLotAdmin(request) {
   };
 }
 
+async function requireParkingLotManager(
+  request,
+  requestedParkingLotId = null
+) {
+  const user = await getAuthenticatedProfile(request);
+
+  let parkingLotId = null;
+
+  if (user.role === 'admin') {
+    parkingLotId = cleanText(user.parkingLotId);
+
+    if (!parkingLotId) {
+      throw new HttpsError(
+        'failed-precondition',
+        'Tu cuenta no tiene una playa asignada.'
+      );
+    }
+
+    const requestedId = cleanText(
+      requestedParkingLotId
+    );
+
+    if (
+      requestedId &&
+      requestedId !== parkingLotId
+    ) {
+      throw new HttpsError(
+        'permission-denied',
+        'No podés administrar otra playa.'
+      );
+    }
+  } else if (user.role === 'platform_admin') {
+    parkingLotId = cleanText(
+      requestedParkingLotId
+    );
+
+    if (!parkingLotId) {
+      throw new HttpsError(
+        'invalid-argument',
+        'Seleccioná una playa válida desde la plataforma.'
+      );
+    }
+  } else {
+    throw new HttpsError(
+      'permission-denied',
+      'Esta función solo puede utilizarla un administrador.'
+    );
+  }
+
+  const parkingLotSnapshot = await db
+    .collection('parkingLots')
+    .doc(parkingLotId)
+    .get();
+
+  if (!parkingLotSnapshot.exists) {
+    throw new HttpsError(
+      'not-found',
+      'La playa indicada no existe.'
+    );
+  }
+
+  const parkingLotData =
+    parkingLotSnapshot.data() || {};
+
+  if (parkingLotData.active === false) {
+    throw new HttpsError(
+      'permission-denied',
+      'La playa se encuentra desactivada.'
+    );
+  }
+
+  return {
+    ...user,
+    parkingLotId,
+  };
+}
+
     async function validateUniqueParkingLot({
       name,
       code,
@@ -728,11 +805,14 @@ exports.createParkingLotUser = onCall(
     region: REGION,
     maxInstances: 2,
   },
-  async (request) => {
-    const parkingLotAdmin =
-      await requireParkingLotAdmin(request);
-
-    const data = request.data || {};
+    async (request) => {
+      const data = request.data || {};
+    
+      const parkingLotManager =
+        await requireParkingLotManager(
+          request,
+          data.parkingLotId
+        );
 
     const username =
       cleanText(data.username);
@@ -778,8 +858,8 @@ exports.createParkingLotUser = onCall(
           email,
           role,
           parkingLotId:
-            parkingLotAdmin.parkingLotId,
-          creator: parkingLotAdmin,
+          parkingLotManager.parkingLotId,
+          creator: parkingLotManager,
         })
       );
     } catch (error) {
@@ -807,7 +887,7 @@ exports.createParkingLotUser = onCall(
         email,
         role,
         parkingLotId:
-          parkingLotAdmin.parkingLotId,
+          parkingLotManager.parkingLotId,
       },
     };
   }

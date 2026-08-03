@@ -102,7 +102,11 @@ function buildArgentinaTimestamp(originalTimestamp, timeValue) {
 }
 
 export default function ParkingPage() {
-  const { user, parkingLotId } = useAuth();
+  const {
+  user,
+  parkingLotId,
+  isInspectingParkingLot,
+} = useAuth();
   const { showToast } = useToast();
 
   const [parkingLotName, setParkingLotName] = useState('ParkingDesk');
@@ -192,8 +196,20 @@ export default function ParkingPage() {
     });
   }, [search, spots]);
 
-  const canOperate = user && ['user', 'admin'].includes(user.role);
-  const isAdmin = user?.role === 'admin';
+const hasPlatformControl =
+  user?.role === 'platform_admin' &&
+  isInspectingParkingLot;
+
+const canOperate =
+  Boolean(user) &&
+  (
+    ['user', 'admin'].includes(user.role) ||
+    hasPlatformControl
+  );
+
+const isAdmin =
+  user?.role === 'admin' ||
+  hasPlatformControl;
 
   async function occupySpot(spotId, plate, vehicleType) {
     const displayPlate = String(plate || '').trim().toUpperCase();
@@ -704,12 +720,12 @@ async function setSpotBlocked(spotId, blocked) {
     },
   ];
 
-  if (user?.role === 'admin') {
-    links.push({
-      to: '/admin',
-      label: 'Admin',
-    });
-  }
+if (isAdmin) {
+  links.push({
+    to: '/admin',
+    label: 'Admin',
+  });
+}
 
   return (
     <>
@@ -722,6 +738,11 @@ async function setSpotBlocked(spotId, blocked) {
         <section className="hero-card">
           <div>
             <p className="eyebrow">Panel principal</p>
+            {isInspectingParkingLot ? (
+                <p className="muted">
+                  Modo inspección de plataforma
+                </p>
+              ) : null}
             <h2>Estado de plazas</h2>
             <p className="muted">Control de plazas en tiempo real para el estacionamiento.</p>
           </div>

@@ -148,11 +148,12 @@ await logsRef.doc(deleteTarget.id).delete();
       </div>
       </section>
     </main>
-   <EditHistoryModal
+<EditHistoryModal
   log={editing}
   onClose={() => setEditing(null)}
   onSave={saveLog}
-  />
+  admin={user?.role === 'admin'}
+/>
       <DeleteLogModal
   log={deleteTarget}
   onClose={() => setDeleteTarget(null)}
@@ -199,25 +200,43 @@ function HistoryRows({ logs, user, search, onEdit, onDelete }) {
                       <strong>{log.closedBy || '—'}</strong>
                       </div>
                       </div>
-                     <div className="history-row__actions">
-  {user?.role === 'admin' ? (
-    <>
-      <button
-        className="ghost-btn secondary-btn--small"
-        type="button"
-        onClick={() => onEdit(log)}
-      >
-        Editar registro
-      </button>
+ <div className="history-row__actions">
+  <button
+    className="secondary-btn secondary-btn--small"
+    type="button"
+    onClick={() =>
+      onEdit({
+        ...log,
+        mode: 'method',
+      })
+    }
+  >
+    Cambiar método
+  </button>
 
-      <button
-        className="danger-btn secondary-btn--small"
-        type="button"
-        onClick={() => onDelete(log)}
-      >
-        Eliminar
-      </button>
-    </>
+  {user?.role === 'admin' ? (
+    <button
+      className="ghost-btn secondary-btn--small"
+      type="button"
+      onClick={() =>
+        onEdit({
+          ...log,
+          mode: 'admin',
+        })
+      }
+    >
+      Editar registro
+    </button>
+  ) : null}
+
+  {user?.role === 'admin' ? (
+    <button
+      className="danger-btn secondary-btn--small"
+      type="button"
+      onClick={() => onDelete(log)}
+    >
+      Eliminar
+    </button>
   ) : null}
 </div>
 </article>;
@@ -228,6 +247,7 @@ function EditHistoryModal({
   log,
   onClose,
   onSave,
+  admin,
 }) {
   const [method, setMethod] =
     useState('EFECTIVO');
@@ -259,15 +279,24 @@ function EditHistoryModal({
     return null;
   }
 
+  const fullEdit =
+    admin && log.mode === 'admin';
+
   function handleSubmit(event) {
     event.preventDefault();
 
-    onSave(log.id, {
-      payMethod: method,
-      amount: Number(amount),
-      occupantName:
-        plate.trim().toUpperCase(),
-    });
+    const changes = fullEdit
+      ? {
+          payMethod: method,
+          amount: Number(amount),
+          occupantName:
+            plate.trim().toUpperCase(),
+        }
+      : {
+          payMethod: method,
+        };
+
+    onSave(log.id, changes);
   }
 
   return (
@@ -278,8 +307,11 @@ function EditHistoryModal({
     >
       <div className="modal-title">
         <span>💳</span>
+
         <h3 id="editLogTitle">
-          Editar registro
+          {fullEdit
+            ? 'Editar registro'
+            : 'Cambiar método'}
         </h3>
       </div>
 
@@ -308,32 +340,36 @@ function EditHistoryModal({
         className="form-grid"
         onSubmit={handleSubmit}
       >
-        <label className="form-field">
-          <span>Patente</span>
+        {fullEdit ? (
+          <>
+            <label className="form-field">
+              <span>Patente</span>
 
-          <input
-            value={plate}
-            onChange={(event) =>
-              setPlate(event.target.value)
-            }
-            required
-          />
-        </label>
+              <input
+                value={plate}
+                onChange={(event) =>
+                  setPlate(event.target.value)
+                }
+                required
+              />
+            </label>
 
-        <label className="form-field">
-          <span>Monto</span>
+            <label className="form-field">
+              <span>Monto</span>
 
-          <input
-            value={amount}
-            onChange={(event) =>
-              setAmount(event.target.value)
-            }
-            type="number"
-            min="0"
-            step="1"
-            required
-          />
-        </label>
+              <input
+                value={amount}
+                onChange={(event) =>
+                  setAmount(event.target.value)
+                }
+                type="number"
+                min="0"
+                step="1"
+                required
+              />
+            </label>
+          </>
+        ) : null}
 
         <label className="form-field">
           <span>Método de pago</span>

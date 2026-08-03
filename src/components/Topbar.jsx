@@ -1,4 +1,4 @@
-import { Link } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 import { useEffect, useState } from 'react';
 import { useAuth } from '../auth/AuthContext';
 import { safeText, THEME_KEY } from '../utils/helpers';
@@ -26,8 +26,20 @@ export function useThemeClock() {
 }
 
 export default function Topbar({ title = 'Estacionamiento Azul', links = [] }) {
-  const { user, logout } = useAuth();
+      const {
+      user,
+      logout,
+      isInspectingParkingLot,
+      exitParkingLotAsPlatform,
+    } = useAuth();
   const { clock, dark, toggleTheme } = useThemeClock();
+
+  const navigate = useNavigate();
+
+function handleBackToPlatform() {
+  exitParkingLotAsPlatform();
+  navigate('/platform', { replace: true });
+}
 
   return (
     <header className="topbar">
@@ -39,6 +51,15 @@ export default function Topbar({ title = 'Estacionamiento Azul', links = [] }) {
         {user ? <span id="userBadge" className="user-badge">{safeText(user.username, 'Usuario')} · {String(user.role || 'viewer').toUpperCase()}</span> : null}
         {links.map((link) => <Link key={link.to} className="ghost-link" to={link.to}>{link.label}</Link>)}
         <button id="themeToggle" className="icon-btn" type="button" aria-label="Cambiar tema" onClick={toggleTheme}>{dark ? '☀️' : '🌙'}</button>
+        {isInspectingParkingLot ? (
+          <button
+            type="button"
+            className="secondary-btn"
+            onClick={handleBackToPlatform}
+          >
+            ← Volver a plataforma
+          </button>
+        ) : null}
         {user ? <button id="logoutBtn" className="secondary-btn" type="button" onClick={logout}>Salir</button> : null}
       </div>
     </header>

@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 
 import { useAuth } from '../auth/AuthContext';
 import {
@@ -42,7 +43,13 @@ function normalizeParkingLotId(value) {
 }
 
 export default function PlatformPage() {
-  const { user, logout } = useAuth();
+  const {
+  user,
+  logout,
+  enterParkingLotAsPlatform,
+  } = useAuth();
+
+  const navigate = useNavigate();
 
   const [parkingLots, setParkingLots] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -331,6 +338,38 @@ export default function PlatformPage() {
       setChangingStatusId(null);
     }
   }
+
+  function handleEnterParkingLot(parkingLot) {
+  if (!parkingLot?.id) {
+    setError('No se recibió una playa válida.');
+    return;
+  }
+
+  if (parkingLot.active === false) {
+    setError(
+      `La playa "${parkingLot.name}" está inactiva y no se puede abrir.`
+    );
+    return;
+  }
+
+  setError('');
+  setSuccessMessage('');
+
+  try {
+    enterParkingLotAsPlatform(parkingLot.id);
+    navigate('/', { replace: true });
+  } catch (enterError) {
+    console.error(
+      'Error entrando a la playa:',
+      enterError
+    );
+
+    setError(
+      enterError?.message ||
+        'No se pudo entrar a la playa.'
+    );
+  }
+}
 
   return (
 <main className="layout platform-page">
@@ -717,6 +756,22 @@ export default function PlatformPage() {
         }
       >
         Editar
+      </button>
+
+      <button
+        type="button"
+        className="platform-primary-button"
+        onClick={() =>
+          handleEnterParkingLot(parkingLot)
+        }
+        disabled={
+          parkingLot.active === false ||
+          creating ||
+          updating ||
+          changingStatusId !== null
+        }
+      >
+        Entrar
       </button>
 
       <button

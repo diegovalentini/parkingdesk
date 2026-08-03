@@ -18,6 +18,9 @@ import { normalizeEmail } from '../utils/helpers';
 
 const AuthContext = createContext(null);
 
+const PLATFORM_PARKING_LOT_SESSION_KEY =
+  'parkingdesk_platform_parking_lot';
+
 function firebaseAuthError(error) {
   const code = error?.code || '';
 
@@ -94,6 +97,17 @@ export function AuthProvider({ children }) {
   const [user, setUser] = useState(null);
   const [loading, setLoading] = useState(true);
 
+  const [
+  platformParkingLotId,
+  setPlatformParkingLotId,
+] = useState(() => {
+  return normalizeParkingLotId(
+    sessionStorage.getItem(
+      PLATFORM_PARKING_LOT_SESSION_KEY
+    )
+  );
+});
+
   useEffect(() => {
     const unsub = auth.onAuthStateChanged(async (firebaseUser) => {
       if (!firebaseUser) {
@@ -132,22 +146,83 @@ export function AuthProvider({ children }) {
     }
   }, []);
 
-  const logout = useCallback(async () => {
-    await auth.signOut();
-  }, []);
+const logout = useCallback(async () => {
+  sessionStorage.removeItem(
+    PLATFORM_PARKING_LOT_SESSION_KEY
+  );
+
+  setPlatformParkingLotId(null);
+
+  await auth.signOut();
+}, []);
+
+  const enterParkingLotAsPlatform = useCallback(
+  (parkingLotId) => {
+    const normalizedId =
+      normalizeParkingLotId(parkingLotId);
+
+    if (!normalizedId) {
+      throw new Error(
+        'No se recibió una playa válida.'
+      );
+    }
+
+    sessionStorage.setItem(
+      PLATFORM_PARKING_LOT_SESSION_KEY,
+      normalizedId
+    );
+
+    setPlatformParkingLotId(normalizedId);
+  },
+  []
+);
+
+const exitParkingLotAsPlatform = useCallback(() => {
+  sessionStorage.removeItem(
+    PLATFORM_PARKING_LOT_SESSION_KEY
+  );
+
+  setPlatformParkingLotId(null);
+}, []);
 
   const value = useMemo(() => {
+    const hasPlatformAccess =
+    isPlatformAdmin(user);
+
+    const effectiveParkingLotId =
+    hasPlatformAccess
+    ? platformParkingLotId
+    : getUserParkingLotId(user);
+
     return {
       user,
       loading,
       login,
       logout,
-
-      // Datos preparados para las rutas multi-playa.
-      parkingLotId: getUserParkingLotId(user),
-      isPlatformAdmin: isPlatformAdmin(user),
+    
+      parkingLotId: effectiveParkingLotId,
+      userParkingLotId:
+        getUserParkingLotId(user),
+    
+      isPlatformAdmin: hasPlatformAccess,
+      isInspectingParkingLot:
+        hasPlatformAccess &&
+        Boolean(platformParkingLotId),
+    
+      platformParkingLotId,
+    
+      enterParkingLotAsPlatform,
+      exitParkingLotAsPlatform,
     };
-  }, [user, loading, login, logout]);
+  }, [
+  user,
+  loading,
+  login,
+  logout,
+  platformParkingLotId,
+  enterParkingLotAsPlatform,
+  exitParkingLotAsPlatform,
+]);
 
   return (
     <AuthContext.Provider value={value}>
@@ -165,7 +240,18 @@ export function RequireAuth({
   adminOnly = false,
   allowedRoles = null,
 }) {
-  const { user, loading, logout } = useAuth();
+  const {
+  user,
+  loading,
+  logout,
+  isInspectingParkingLot,
+} = useAuth();
+  const hasAdminAccess =
+    user?.role === USER_ROLES.ADMIN ||
+    (
+      user?.role === USER_ROLES.PLATFORM_ADMIN &&
+      isInspectingParkingLot
+    );
   const navigate = useNavigate();
   const location = useLocation();
 
@@ -189,16 +275,18 @@ export function RequireAuth({
       return;
     }
 
-    if (user.role === USER_ROLES.PLATFORM_ADMIN) {
-      navigate('/platform', { replace: true });
-      return;
-    }
+ if (
+  user.role === USER_ROLES.PLATFORM_ADMIN &&
+  !isInspectingParkingLot
+) {
+  navigate('/platform', { replace: true });
+  return;
+}
 
-    if (adminOnly && user.role !== USER_ROLES.ADMIN) {
+    if (adminOnly && !hasAdminAccess) {
       navigate('/', { replace: true });
       return;
     }
-
     if (
       Array.isArray(allowedRoles) &&
       !allowedRoles.includes(user.role)
@@ -208,6 +296,7 @@ export function RequireAuth({
   }, [
     adminOnly,
     allowedRoles,
+     isInspectingParkingLot,
     loading,
     location.pathname,
     logout,
@@ -227,13 +316,16 @@ export function RequireAuth({
     return null;
   }
 
-  if (user.role === USER_ROLES.PLATFORM_ADMIN) {
+if (
+  user.role === USER_ROLES.PLATFORM_ADMIN &&
+  !isInspectingParkingLot
+) {
   return null;
 }
 
-  if (adminOnly && user.role !== USER_ROLES.ADMIN) {
-    return null;
-  }
+    if (adminOnly && !hasAdminAccess) {
+      return null;
+    }
 
   if (
     Array.isArray(allowedRoles) &&

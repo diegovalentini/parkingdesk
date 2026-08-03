@@ -60,6 +60,27 @@ service cloud.firestore {
       return isUser() || isAdmin();
     }
 
+    function canReadParkingLot(parkingLotId) {
+      return isPlatformAdmin()
+        || belongsToParkingLot(parkingLotId);
+    }
+    
+    function canOperateParkingLot(parkingLotId) {
+      return isPlatformAdmin()
+        || (
+          canOperate()
+          && belongsToParkingLot(parkingLotId)
+        );
+    }
+    
+    function canAdminParkingLot(parkingLotId) {
+      return isPlatformAdmin()
+        || (
+          isAdmin()
+          && belongsToParkingLot(parkingLotId)
+        );
+    }
+
     match /users/{userId} {
       allow read: if
         isPlatformAdmin()
@@ -128,21 +149,27 @@ service cloud.firestore {
     }
 
     match /parkingLots/{parkingLotId}/blacklist/{plateId} {
-      allow read: if belongsToParkingLot(parkingLotId);
+      allow read: if
+        isPlatformAdmin()
+        || belongsToParkingLot(parkingLotId);
 
       allow create, update, delete: if isAdmin()
         && belongsToParkingLot(parkingLotId);
     }
     
     match /parkingLots/{parkingLotId}/settings/{docId} {
-      allow read: if belongsToParkingLot(parkingLotId);
+      allow read: if
+        isPlatformAdmin()
+        || belongsToParkingLot(parkingLotId);
 
       allow create, update, delete: if isAdmin()
         && belongsToParkingLot(parkingLotId);
     }
 
     match /parkingLots/{parkingLotId}/spots/{spotId} {
-      allow read: if belongsToParkingLot(parkingLotId);
+      allow read: if
+        isPlatformAdmin()
+        || belongsToParkingLot(parkingLotId);
 
       allow create, delete: if isAdmin()
         && belongsToParkingLot(parkingLotId);
@@ -152,26 +179,50 @@ service cloud.firestore {
     }
 
     match /parkingLots/{parkingLotId}/logs/{logId} {
-      allow read: if canOperate()
-        && belongsToParkingLot(parkingLotId);
+      allow read: if
+        isPlatformAdmin()
+        || (
+          canOperate()
+          && belongsToParkingLot(parkingLotId)
+        );
 
       allow create: if canOperate()
         && belongsToParkingLot(parkingLotId);
 
-      allow update: if (
-        isAdmin()
-        && belongsToParkingLot(parkingLotId)
-      ) || (
-        isUser()
-        && belongsToParkingLot(parkingLotId)
-        && request.resource.data.diff(resource.data).changedKeys().hasOnly([
-          'payMethod',
-          'updatedAt',
-          'editedMethodBy',
-          'editedMethodByUid',
-          'editedMethodAt'
-        ])
-      );
+allow update: if (
+  isAdmin()
+  && belongsToParkingLot(parkingLotId)
+) || (
+  isUser()
+  && belongsToParkingLot(parkingLotId)
+
+  // Debe cambiar obligatoriamente el método de pago.
+  && request.resource.data.payMethod
+    != resource.data.payMethod
+
+  // Solo puede modificar el método y sus datos de auditoría.
+  && request.resource.data
+    .diff(resource.data)
+    .changedKeys()
+    .hasOnly([
+      'payMethod',
+      'updatedAt',
+      'editedBy',
+      'editedByUid'
+    ])
+
+  // Solo se aceptan los dos métodos válidos.
+  && request.resource.data.payMethod
+    in ['EFECTIVO', 'MP']
+
+  // El UID del editor debe ser el de la sesión.
+  && request.resource.data.editedByUid
+    == request.auth.uid
+
+  // updatedAt debe ser un serverTimestamp real.
+  && request.resource.data.updatedAt
+    == request.time
+);
 
       allow delete: if isAdmin()
         && belongsToParkingLot(parkingLotId);

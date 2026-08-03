@@ -19,7 +19,9 @@ export async function createParkingLotUser({
   email,
   password,
   role,
+  parkingLotId,
 }) {
+  const cleanParkingLotId = cleanText(parkingLotId);
   const cleanUsername = cleanText(username);
   const cleanEmail = normalizeEmail(email);
   const cleanPassword = String(password || '');
@@ -55,6 +57,7 @@ export async function createParkingLotUser({
       email: cleanEmail,
       password: cleanPassword,
       role: cleanRole,
+      parkingLotId: cleanParkingLotId || null,
     });
 
     return response.data;
