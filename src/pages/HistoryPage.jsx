@@ -201,6 +201,7 @@ function HistoryRows({ logs, user, search, onEdit, onDelete }) {
                       </div>
                       </div>
  <div className="history-row__actions">
+{['user', 'admin'].includes(user?.role) ? (
   <button
     className="secondary-btn secondary-btn--small"
     type="button"
@@ -213,6 +214,7 @@ function HistoryRows({ logs, user, search, onEdit, onDelete }) {
   >
     Cambiar método
   </button>
+) : null}
 
   {user?.role === 'admin' ? (
     <button
