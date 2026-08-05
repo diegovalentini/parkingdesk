@@ -1,4 +1,5 @@
 import firebase from 'firebase/compat/app';
+import 'firebase/compat/app-check';
 import 'firebase/compat/auth';
 import 'firebase/compat/firestore';
 import 'firebase/compat/functions';
@@ -56,6 +57,29 @@ if (missingConfigValues.length > 0) {
 
 if (!firebase.apps.length) {
   firebase.initializeApp(firebaseConfig);
+}
+
+const appCheckSiteKey =
+  import.meta.env.VITE_FIREBASE_APPCHECK_SITE_KEY;
+
+if (appCheckSiteKey) {
+  if (
+    import.meta.env.DEV &&
+    import.meta.env.VITE_FIREBASE_APPCHECK_DEBUG === 'true'
+  ) {
+    self.FIREBASE_APPCHECK_DEBUG_TOKEN = true;
+  }
+
+  firebase.appCheck().activate(
+    new firebase.appCheck.ReCaptchaEnterpriseProvider(
+      appCheckSiteKey
+    ),
+    true
+  );
+} else if (import.meta.env.DEV) {
+  console.warn(
+    '[Firebase] App Check no está configurado en este entorno.'
+  );
 }
 
 export const auth = firebase.auth();

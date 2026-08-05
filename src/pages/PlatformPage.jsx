@@ -73,6 +73,14 @@ function getContactLabel(parkingLot) {
   return parkingLot.contact || 'No asignado';
 }
 
+function normalizeSearchText(value) {
+  return String(value || '')
+    .trim()
+    .toLowerCase()
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '');
+}
+
 export default function PlatformPage() {
   const {
   user,
@@ -83,6 +91,7 @@ export default function PlatformPage() {
   const navigate = useNavigate();
 
   const [parkingLots, setParkingLots] = useState([]);
+  const [searchTerm, setSearchTerm] = useState('');
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
 
@@ -103,6 +112,17 @@ export default function PlatformPage() {
     useState(null);
 
   const [successMessage, setSuccessMessage] = useState('');
+
+  const normalizedSearchTerm =
+    normalizeSearchText(searchTerm);
+
+  const filteredParkingLots = normalizedSearchTerm
+    ? parkingLots.filter((parkingLot) =>
+        normalizeSearchText(parkingLot.name).includes(
+          normalizedSearchTerm
+        )
+      )
+    : parkingLots;
 
   const loadParkingLots = useCallback(async () => {
     setLoading(true);
@@ -720,13 +740,31 @@ export default function PlatformPage() {
 )}
 
         <div className="platform-list-header">
-  <h2>Playas registradas</h2>
+          <h2>Playas registradas</h2>
 
-  <span className="platform-count">
-    {parkingLots.length}{' '}
-    {parkingLots.length === 1 ? 'playa' : 'playas'}
-  </span>
-</div>
+          <div className="platform-list-tools">
+            <input
+              className="platform-search-input"
+              type="search"
+              value={searchTerm}
+              onChange={(event) =>
+                setSearchTerm(event.target.value)
+              }
+              placeholder="Buscar por nombre"
+              aria-label="Buscar playa por nombre"
+              disabled={loading}
+            />
+
+            <span className="platform-count">
+              {normalizedSearchTerm
+                ? `${filteredParkingLots.length} de ${parkingLots.length}`
+                : parkingLots.length}{' '}
+              {parkingLots.length === 1
+                ? 'playa'
+                : 'playas'}
+            </span>
+          </div>
+        </div>
 
         {loading && (
           <p className="muted">
@@ -755,8 +793,9 @@ export default function PlatformPage() {
 
         {!loading &&
           parkingLots.length > 0 && (
+            filteredParkingLots.length > 0 ? (
             <div className="platform-grid">
-              {parkingLots.map((parkingLot) => {
+              {filteredParkingLots.map((parkingLot) => {
                 const isEditing =
                   editingParkingLotId === parkingLot.id;
 
@@ -1075,6 +1114,15 @@ export default function PlatformPage() {
                 );
               })}
             </div>
+            ) : (
+              <div className="platform-empty-state">
+                <h3>No encontramos esa playa</h3>
+
+                <p className="muted">
+                  Probá con otro nombre o limpiá la búsqueda.
+                </p>
+              </div>
+            )
           )}
       </section>
     </main>

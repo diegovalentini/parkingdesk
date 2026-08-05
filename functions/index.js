@@ -454,6 +454,7 @@ exports.resolveUsernameLogin = onCall(
   {
     region: REGION,
     maxInstances: 5,
+    enforceAppCheck: true,
   },
   async (request) => {
     const username = cleanUsername(
