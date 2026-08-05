@@ -149,49 +149,38 @@ service cloud.firestore {
     }
 
     match /parkingLots/{parkingLotId}/blacklist/{plateId} {
-      allow read: if
-        isPlatformAdmin()
-        || belongsToParkingLot(parkingLotId);
+      allow read: if canReadParkingLot(parkingLotId);
 
-      allow create, update, delete: if isAdmin()
-        && belongsToParkingLot(parkingLotId);
+      allow create, update, delete: if
+        canAdminParkingLot(parkingLotId);
     }
     
     match /parkingLots/{parkingLotId}/settings/{docId} {
-      allow read: if
-        isPlatformAdmin()
-        || belongsToParkingLot(parkingLotId);
+      allow read: if canReadParkingLot(parkingLotId);
 
-      allow create, update, delete: if isAdmin()
-        && belongsToParkingLot(parkingLotId);
+      allow create, update, delete: if
+        canAdminParkingLot(parkingLotId);
     }
 
     match /parkingLots/{parkingLotId}/spots/{spotId} {
-      allow read: if
-        isPlatformAdmin()
-        || belongsToParkingLot(parkingLotId);
+      allow read: if canReadParkingLot(parkingLotId);
 
-      allow create, delete: if isAdmin()
-        && belongsToParkingLot(parkingLotId);
+      allow create, delete: if
+        canAdminParkingLot(parkingLotId);
 
-      allow update: if canOperate()
-        && belongsToParkingLot(parkingLotId);
+      allow update: if
+        canOperateParkingLot(parkingLotId);
     }
 
     match /parkingLots/{parkingLotId}/logs/{logId} {
       allow read: if
-        isPlatformAdmin()
-        || (
-          canOperate()
-          && belongsToParkingLot(parkingLotId)
-        );
+        canOperateParkingLot(parkingLotId);
 
-      allow create: if canOperate()
-        && belongsToParkingLot(parkingLotId);
+      allow create: if
+        canOperateParkingLot(parkingLotId);
 
 allow update: if (
-  isAdmin()
-  && belongsToParkingLot(parkingLotId)
+  canAdminParkingLot(parkingLotId)
 ) || (
   isUser()
   && belongsToParkingLot(parkingLotId)
@@ -224,8 +213,8 @@ allow update: if (
     == request.time
 );
 
-      allow delete: if isAdmin()
-        && belongsToParkingLot(parkingLotId);
+      allow delete: if
+        canAdminParkingLot(parkingLotId);
     }
 
 

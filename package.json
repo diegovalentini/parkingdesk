@@ -7,7 +7,8 @@
     "dev": "vite --mode development",
     "build:dev": "vite build --mode development",
     "build:prod": "vite build --mode production",
-    "preview": "vite preview"
+    "preview": "vite preview",
+    "test:rules": "node --test tests/firestore.rules.test.mjs"
   },
   "dependencies": {
     "@vitejs/plugin-react": "latest",
@@ -19,5 +20,7 @@
     "jspdf": "latest",
     "jspdf-autotable": "latest"
   },
-  "devDependencies": {}
+  "devDependencies": {
+    "@firebase/rules-unit-testing": "^5.0.1"
+  }
 }
