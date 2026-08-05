@@ -99,7 +99,18 @@ service cloud.firestore {
 
       // El platform_admin puede administrar perfiles.
       allow update: if
-        isPlatformAdmin()
+        (
+          isPlatformAdmin()
+          && !request.resource.data
+            .diff(resource.data)
+            .changedKeys()
+            .hasAny([
+              'uid',
+              'username',
+              'usernameNormalized',
+              'email'
+            ])
+        )
 
         // Un admin normal solo puede modificar usuarios
         // pertenecientes a su misma playa.
@@ -123,22 +134,15 @@ service cloud.firestore {
               'updatedByUid',
               'disabledByUid'
             ])
-        )
-
-        // Un usuario solo puede actualizar su nombre.
-        || (
-          signedIn()
-          && request.auth.uid == userId
-          && request.resource.data
-            .diff(resource.data)
-            .changedKeys()
-            .hasOnly([
-              'username',
-              'updatedAt'
-            ])
         );
 
       allow delete: if false;
+    }
+
+    // Registro privado utilizado solamente por Cloud Functions
+    // para resolver el acceso mediante un username global.
+    match /usernames/{usernameId} {
+      allow read, write: if false;
     }
 
     match /parkingLots/{parkingLotId} {

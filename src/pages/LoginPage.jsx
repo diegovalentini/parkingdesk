@@ -5,10 +5,13 @@ import { useToast } from '../components/Toast';
 import { useThemeClock } from '../components/Topbar';
 
 export default function LoginPage() {
-  const { user, login } = useAuth();
+  const { user, login, resetPassword } = useAuth();
   const { showToast } = useToast();
   const navigate = useNavigate();
   const [loading, setLoading] = useState(false);
+  const [resettingPassword, setResettingPassword] =
+    useState(false);
+  const [identifier, setIdentifier] = useState('');
   const { clock, dark, toggleTheme } = useThemeClock();
 
 useEffect(() => {
@@ -25,9 +28,34 @@ useEffect(() => {
     event.preventDefault();
     setLoading(true);
     const form = new FormData(event.currentTarget);
-    const error = await login(form.get('email'), form.get('password'));
+    const error = await login(
+      identifier,
+      form.get('password')
+    );
     setLoading(false);
     if (error) return showToast(error);
+  }
+
+  async function handlePasswordReset() {
+    if (!identifier.trim()) {
+      showToast(
+        'Ingresá primero tu usuario o email.'
+      );
+      return;
+    }
+
+    setResettingPassword(true);
+    const error = await resetPassword(identifier);
+    setResettingPassword(false);
+
+    if (error) {
+      showToast(error);
+      return;
+    }
+
+    showToast(
+      'Si la cuenta existe, recibirás un email para cambiar la contraseña.'
+    );
   }
 
 
@@ -49,14 +77,18 @@ useEffect(() => {
   onSubmit={handleLogin}
 >
   <label className="form-field">
-    <span>Email</span>
+    <span>Usuario o email</span>
 
     <input
-      name="email"
-      type="email"
-      autoComplete="email"
+      name="identifier"
+      type="text"
+      value={identifier}
+      onChange={(event) =>
+        setIdentifier(event.target.value)
+      }
+      autoComplete="username"
       required
-      placeholder="usuario@email.com"
+      placeholder="Tu usuario o email"
     />
   </label>
 
@@ -78,6 +110,17 @@ useEffect(() => {
     disabled={loading}
   >
     Ingresar
+  </button>
+
+  <button
+    className="password-reset-button"
+    type="button"
+    onClick={handlePasswordReset}
+    disabled={loading || resettingPassword}
+  >
+    {resettingPassword
+      ? 'Enviando...'
+      : '¿Olvidaste tu contraseña?'}
   </button>
 
   <p className="muted small-text">

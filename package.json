@@ -8,7 +8,8 @@
     "build:dev": "vite build --mode development",
     "build:prod": "vite build --mode production",
     "preview": "vite preview",
-    "test:rules": "node --test tests/firestore.rules.test.mjs"
+    "test:rules": "node --test tests/firestore.rules.test.mjs",
+    "test:usernames": "node --test tests/usernameUtils.test.cjs"
   },
   "dependencies": {
     "@vitejs/plugin-react": "latest",

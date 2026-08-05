@@ -430,5 +430,50 @@ describe(
         })
       );
     });
+
+    test('el registro de usernames es privado', async () => {
+      const anonymousDatabase = unauthenticatedDb();
+      const platformDatabase = authenticatedDb('platform');
+
+      await assertFails(
+        getDoc(
+          doc(anonymousDatabase, 'usernames', 'dXNlci1h')
+        )
+      );
+
+      await assertFails(
+        getDoc(
+          doc(platformDatabase, 'usernames', 'dXNlci1h')
+        )
+      );
+
+      await assertFails(
+        setDoc(
+          doc(platformDatabase, 'usernames', 'nuevo'),
+          {
+            uid: 'new-user',
+            email: 'new-user@example.com',
+          }
+        )
+      );
+    });
+
+    test('los usernames no se cambian directamente', async () => {
+      const userDatabase = authenticatedDb('user-a');
+      const platformDatabase = authenticatedDb('platform');
+
+      await assertFails(
+        updateDoc(doc(userDatabase, 'users', 'user-a'), {
+          username: 'otro-usuario',
+          updatedAt: serverTimestamp(),
+        })
+      );
+
+      await assertFails(
+        updateDoc(doc(platformDatabase, 'users', 'user-a'), {
+          username: 'otro-usuario',
+        })
+      );
+    });
   }
 );

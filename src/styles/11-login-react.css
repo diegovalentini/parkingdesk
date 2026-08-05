@@ -74,6 +74,26 @@ body:has(.auth-layout) {
   min-height: 50px;
 }
 
+.password-reset-button {
+  justify-self: center;
+  padding: 4px 8px;
+  color: var(--primary);
+  border: 0;
+  background: transparent;
+  font: inherit;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.password-reset-button:hover {
+  text-decoration: underline;
+}
+
+.password-reset-button:disabled {
+  cursor: wait;
+  opacity: 0.6;
+}
+
 @media (max-width: 520px) {
   body:has(.auth-layout) {
     align-items: start;
@@ -89,4 +109,3 @@ body:has(.auth-layout) {
     border-radius: 18px;
   }
 }
-

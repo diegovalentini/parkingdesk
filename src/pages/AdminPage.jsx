@@ -694,7 +694,7 @@ async function loadSpotSettings() {
               onSubmit={createUser}
             >
               <label className="form-field">
-                <span>Nombre</span>
+                <span>Nombre de usuario</span>
                 <input
                   type="text"
                   value={newUser.username}
@@ -705,9 +705,14 @@ async function loadSpotSettings() {
                     }))
                   }
                   placeholder="Ej: Juan Pérez"
-                  autoComplete="name"
+                  autoComplete="off"
+                  minLength="3"
+                  maxLength="60"
                   required
                 />
+                <small className="muted">
+                  Será único en ParkingDesk y podrá usarse para iniciar sesión.
+                </small>
               </label>
                 
               <label className="form-field">

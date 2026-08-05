@@ -17,6 +17,8 @@ const INITIAL_CREATE_FORM = {
   code: '',
   address: '',
   timezone: DEFAULT_TIMEZONE,
+  primaryAdminName: '',
+  contact: '',
 
   adminUsername: '',
   adminEmail: '',
@@ -29,6 +31,8 @@ const INITIAL_EDIT_FORM = {
   code: '',
   address: '',
   timezone: DEFAULT_TIMEZONE,
+  primaryAdminName: '',
+  contact: '',
 };
 
 function normalizeParkingLotId(value) {
@@ -40,6 +44,33 @@ function normalizeParkingLotId(value) {
     .replace(/[^a-z0-9-]/g, '-')
     .replace(/-+/g, '-')
     .replace(/^-|-$/g, '');
+}
+
+function formatCreationDate(value) {
+  if (!value) {
+    return 'No disponible';
+  }
+
+  const date =
+    typeof value.toDate === 'function'
+      ? value.toDate()
+      : typeof value.toMillis === 'function'
+        ? new Date(value.toMillis())
+        : new Date(value);
+
+  if (Number.isNaN(date.getTime())) {
+    return 'No disponible';
+  }
+
+  return new Intl.DateTimeFormat('es-AR', {
+    day: '2-digit',
+    month: '2-digit',
+    year: 'numeric',
+  }).format(date);
+}
+
+function getContactLabel(parkingLot) {
+  return parkingLot.contact || 'No asignado';
 }
 
 export default function PlatformPage() {
@@ -162,6 +193,9 @@ export default function PlatformPage() {
       address: parkingLot.address || '',
       timezone:
         parkingLot.timezone || DEFAULT_TIMEZONE,
+      primaryAdminName:
+        parkingLot.primaryAdminName || '',
+      contact: parkingLot.contact || '',
     });
   }
 
@@ -211,6 +245,9 @@ export default function PlatformPage() {
               code: createForm.code,
               address: createForm.address,
               timezone: createForm.timezone,
+              primaryAdminName:
+                createForm.primaryAdminName,
+              contact: createForm.contact,
             
               adminUsername: createForm.adminUsername,
               adminEmail: createForm.adminEmail,
@@ -265,6 +302,9 @@ export default function PlatformPage() {
         code: editForm.code,
         address: editForm.address,
         timezone: editForm.timezone,
+        primaryAdminName:
+          editForm.primaryAdminName,
+        contact: editForm.contact,
         user,
       });
 
@@ -523,6 +563,42 @@ export default function PlatformPage() {
           disabled={creating}
         />
       </div>
+
+      <div className="platform-field">
+        <label htmlFor="parking-lot-primary-admin">
+          Administrador principal
+        </label>
+
+        <input
+          id="parking-lot-primary-admin"
+          name="primaryAdminName"
+          type="text"
+          value={createForm.primaryAdminName}
+          onChange={handleCreateInputChange}
+          placeholder="Dato informativo"
+          autoComplete="off"
+          maxLength="100"
+          disabled={creating}
+        />
+      </div>
+
+      <div className="platform-field">
+        <label htmlFor="parking-lot-contact">
+          Contacto
+        </label>
+
+        <input
+          id="parking-lot-contact"
+          name="contact"
+          type="text"
+          value={createForm.contact}
+          onChange={handleCreateInputChange}
+          placeholder="Teléfono, email o referencia"
+          autoComplete="off"
+          maxLength="160"
+          disabled={creating}
+        />
+      </div>
     </div>
 
     <hr />
@@ -537,7 +613,7 @@ export default function PlatformPage() {
     <div className="platform-form-grid">
       <div className="platform-field">
         <label htmlFor="parking-lot-admin-username">
-          Nombre del administrador
+          Nombre de usuario del administrador
         </label>
 
         <input
@@ -548,9 +624,15 @@ export default function PlatformPage() {
           onChange={handleCreateInputChange}
           placeholder="Ej: Juan Pérez"
           autoComplete="off"
+          minLength="3"
+          maxLength="60"
           disabled={creating}
           required
         />
+
+        <small className="muted">
+          Será único en ParkingDesk y podrá usarse para iniciar sesión.
+        </small>
       </div>
 
       <div className="platform-field">
@@ -712,52 +794,78 @@ export default function PlatformPage() {
       </span>
     </div>
 
-    <div className="platform-details">
-      <div className="platform-detail">
-        <span className="platform-detail-label">
-          ID interno
-        </span>
-
-        <span className="platform-detail-value">
-          {parkingLot.id}
-        </span>
-      </div>
-
-      <div className="platform-detail">
+    <div className="platform-card-overview">
+      <div className="platform-card-info">
         <span className="platform-detail-label">
           Dirección
         </span>
 
-        <span className="platform-detail-value">
+        <strong className="platform-detail-value">
           {parkingLot.address || 'Sin dirección'}
-        </span>
+        </strong>
       </div>
 
-      <div className="platform-detail">
+      <div className="platform-card-info">
         <span className="platform-detail-label">
-          Zona horaria
+          Administrador principal
         </span>
 
-        <span className="platform-detail-value">
-          {parkingLot.timezone}
+        <strong className="platform-detail-value">
+          {parkingLot.primaryAdminName || 'No asignado'}
+        </strong>
+      </div>
+
+      <div className="platform-card-info">
+        <span className="platform-detail-label">
+          Contacto
         </span>
+
+        <strong className="platform-detail-value">
+          {getContactLabel(parkingLot)}
+        </strong>
+      </div>
+
+      <div className="platform-card-info">
+        <span className="platform-detail-label">
+          Fecha de creación
+        </span>
+
+        <strong className="platform-detail-value">
+          {formatCreationDate(parkingLot.createdAt)}
+        </strong>
       </div>
     </div>
 
-    <div className="platform-card-actions">
-      <button
-        type="button"
-        className="platform-secondary-button"
-        onClick={() => openEditForm(parkingLot)}
-        disabled={
-          creating ||
-          updating ||
-          changingStatusId !== null
-        }
-      >
-        Editar
-      </button>
+    <details className="platform-technical-details">
+      <summary>Detalles técnicos</summary>
 
+      <div className="platform-details">
+        <div className="platform-detail">
+          <span className="platform-detail-label">
+            ID interno
+          </span>
+
+          <span className="platform-detail-value">
+            {parkingLot.id}
+          </span>
+        </div>
+
+        <div className="platform-detail">
+          <span className="platform-detail-label">
+            Zona horaria
+          </span>
+
+          <span
+            className="platform-detail-value"
+            title={parkingLot.timezone}
+          >
+            {parkingLot.timezone}
+          </span>
+        </div>
+      </div>
+    </details>
+
+    <div className="platform-card-actions">
       <button
         type="button"
         className="platform-primary-button"
@@ -772,6 +880,19 @@ export default function PlatformPage() {
         }
       >
         Entrar
+      </button>
+
+      <button
+        type="button"
+        className="platform-secondary-button"
+        onClick={() => openEditForm(parkingLot)}
+        disabled={
+          creating ||
+          updating ||
+          changingStatusId !== null
+        }
+      >
+        Editar
       </button>
 
       <button
@@ -879,6 +1000,44 @@ export default function PlatformPage() {
           type="text"
           value={editForm.address}
           onChange={handleEditInputChange}
+          disabled={updating}
+        />
+      </div>
+
+      <div className="platform-field">
+        <label
+          htmlFor={`edit-primary-admin-${parkingLot.id}`}
+        >
+          Administrador principal
+        </label>
+
+        <input
+          id={`edit-primary-admin-${parkingLot.id}`}
+          name="primaryAdminName"
+          type="text"
+          value={editForm.primaryAdminName}
+          onChange={handleEditInputChange}
+          placeholder="Dato informativo"
+          autoComplete="off"
+          maxLength="100"
+          disabled={updating}
+        />
+      </div>
+
+      <div className="platform-field">
+        <label htmlFor={`edit-contact-${parkingLot.id}`}>
+          Contacto
+        </label>
+
+        <input
+          id={`edit-contact-${parkingLot.id}`}
+          name="contact"
+          type="text"
+          value={editForm.contact}
+          onChange={handleEditInputChange}
+          placeholder="Teléfono, email o referencia"
+          autoComplete="off"
+          maxLength="160"
           disabled={updating}
         />
       </div>

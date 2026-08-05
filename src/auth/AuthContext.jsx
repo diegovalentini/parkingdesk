@@ -8,7 +8,11 @@ import {
 } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 
-import { auth, db } from '../firebase/firebase';
+import {
+  auth,
+  db,
+  functions,
+} from '../firebase/firebase';
 import {
   USER_ROLES,
   getUserParkingLotId,
@@ -29,14 +33,16 @@ function firebaseAuthError(error) {
   }
 
   if (code.includes('auth/user-not-found')) {
-    return 'No existe una cuenta con ese email.';
+    return 'Usuario, email o contraseña incorrectos.';
   }
 
   if (
     code.includes('auth/wrong-password') ||
-    code.includes('auth/invalid-credential')
+    code.includes('auth/invalid-credential') ||
+    code.includes('functions/not-found') ||
+    code.includes('functions/invalid-argument')
   ) {
-    return 'Email o contraseña incorrectos.';
+    return 'Usuario, email o contraseña incorrectos.';
   }
 
   if (code.includes('auth/network-request-failed')) {
@@ -54,6 +60,30 @@ function normalizeParkingLotId(value) {
   const cleanValue = value.trim();
 
   return cleanValue || null;
+}
+
+async function resolveIdentifierEmail(identifier) {
+  const cleanIdentifier =
+    String(identifier || '').trim();
+
+  if (!cleanIdentifier) {
+    throw new Error('Ingresá tu usuario o email.');
+  }
+
+  if (cleanIdentifier.includes('@')) {
+    return normalizeEmail(cleanIdentifier);
+  }
+
+  const resolveUsername =
+    functions.httpsCallable(
+      'resolveUsernameLogin'
+    );
+
+  const response = await resolveUsername({
+    username: cleanIdentifier,
+  });
+
+  return normalizeEmail(response.data?.email);
 }
 
 async function getUserProfile(firebaseUser) {
@@ -132,10 +162,13 @@ export function AuthProvider({ children }) {
     return () => unsub();
   }, []);
 
-  const login = useCallback(async (email, password) => {
+  const login = useCallback(async (identifier, password) => {
     try {
+      const email =
+        await resolveIdentifierEmail(identifier);
+
       await auth.signInWithEmailAndPassword(
-        normalizeEmail(email),
+        email,
         password
       );
 
@@ -145,6 +178,37 @@ export function AuthProvider({ children }) {
       return firebaseAuthError(error);
     }
   }, []);
+
+  const resetPassword = useCallback(
+    async (identifier) => {
+      try {
+        const email =
+          await resolveIdentifierEmail(identifier);
+
+        auth.languageCode = 'es';
+        await auth.sendPasswordResetEmail(email);
+
+        return null;
+      } catch (error) {
+        console.error(
+          'Error solicitando recuperación de contraseña:',
+          error
+        );
+
+        if (
+          error?.code?.includes(
+            'auth/network-request-failed'
+          )
+        ) {
+          return firebaseAuthError(error);
+        }
+
+        // No revelamos si el usuario o email existe.
+        return null;
+      }
+    },
+    []
+  );
 
 const logout = useCallback(async () => {
   sessionStorage.removeItem(
@@ -198,6 +262,7 @@ const exitParkingLotAsPlatform = useCallback(() => {
       user,
       loading,
       login,
+      resetPassword,
       logout,
     
       parkingLotId: effectiveParkingLotId,
@@ -218,6 +283,7 @@ const exitParkingLotAsPlatform = useCallback(() => {
   user,
   loading,
   login,
+  resetPassword,
   logout,
   platformParkingLotId,
   enterParkingLotAsPlatform,

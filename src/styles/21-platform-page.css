@@ -43,7 +43,9 @@
 
 .platform-toolbar {
   display: flex;
+  flex-wrap: wrap;
   flex-shrink: 0;
+  justify-content: flex-end;
   gap: 12px;
 }
 
@@ -231,6 +233,8 @@
 
 .platform-lot-card {
   position: relative;
+  display: flex;
+  flex-direction: column;
   overflow: hidden;
   margin: 0;
   padding: 22px;
@@ -300,8 +304,42 @@
 
 .platform-details {
   display: grid;
+  gap: 10px;
+  margin-top: 12px;
+}
+
+.platform-card-overview {
+  display: grid;
   gap: 12px;
-  margin-bottom: 20px;
+  margin-bottom: 16px;
+}
+
+.platform-card-info {
+  display: grid;
+  gap: 3px;
+  padding-bottom: 10px;
+  border-bottom: 1px solid rgba(148, 163, 184, 0.12);
+}
+
+.platform-card-info:last-child {
+  padding-bottom: 0;
+  border-bottom: 0;
+}
+
+.platform-technical-details {
+  margin-bottom: 2px;
+  padding: 10px 12px;
+  border: 1px solid rgba(148, 163, 184, 0.14);
+  border-radius: 10px;
+  background: rgba(15, 23, 42, 0.3);
+}
+
+.platform-technical-details summary {
+  color: #94a3b8;
+  font-size: 0.82rem;
+  font-weight: 700;
+  cursor: pointer;
+  user-select: none;
 }
 
 .platform-detail {
@@ -322,6 +360,11 @@
 .platform-detail-value {
   color: #e2e8f0;
   overflow-wrap: anywhere;
+}
+
+.platform-card-actions {
+  margin-top: auto;
+  padding-top: 18px;
 }
 
 .platform-empty-state {

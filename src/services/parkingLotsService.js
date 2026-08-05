@@ -22,6 +22,8 @@ function parkingLotFromDoc(doc) {
     name: data.name || 'Playa sin nombre',
     code: data.code || '',
     address: data.address || '',
+    primaryAdminName: data.primaryAdminName || '',
+    contact: data.contact || '',
     timezone:
       data.timezone || 'America/Argentina/Buenos_Aires',
     active: data.active !== false,
@@ -70,6 +72,8 @@ export async function createParkingLotWithAdmin({
   code,
   address = '',
   timezone = 'America/Argentina/Buenos_Aires',
+  primaryAdminName = '',
+  contact = '',
   adminUsername,
   adminEmail,
   adminPassword,
@@ -82,6 +86,8 @@ export async function createParkingLotWithAdmin({
   const cleanCode = normalizeParkingLotCode(code);
   const cleanAddress = cleanText(address);
   const cleanTimezone = cleanText(timezone);
+  const cleanPrimaryAdminName = cleanText(primaryAdminName);
+  const cleanContact = cleanText(contact);
 
   const cleanAdminUsername = cleanText(adminUsername);
   const cleanAdminEmail = cleanText(adminEmail).toLowerCase();
@@ -124,6 +130,8 @@ export async function createParkingLotWithAdmin({
       code: cleanCode,
       address: cleanAddress,
       timezone: cleanTimezone,
+      primaryAdminName: cleanPrimaryAdminName,
+      contact: cleanContact,
       adminUsername: cleanAdminUsername,
       adminEmail: cleanAdminEmail,
       adminPassword: cleanAdminPassword,
@@ -151,6 +159,8 @@ export async function updateParkingLot({
   code,
   address = '',
   timezone,
+  primaryAdminName = '',
+  contact = '',
   user,
 }) {
   requirePlatformAdmin(user);
@@ -169,6 +179,12 @@ export async function updateParkingLot({
 
   const cleanTimezone =
     cleanText(timezone);
+
+  const cleanPrimaryAdminName =
+    cleanText(primaryAdminName);
+
+  const cleanContact =
+    cleanText(contact);
 
   if (!cleanName) {
     throw new Error(
@@ -199,6 +215,8 @@ export async function updateParkingLot({
       code: cleanCode,
       address: cleanAddress,
       timezone: cleanTimezone,
+      primaryAdminName: cleanPrimaryAdminName,
+      contact: cleanContact,
     });
 
     return response.data;

@@ -16,6 +16,13 @@ const {
   getFirestore,
 } = require('firebase-admin/firestore');
 
+const {
+  cleanUsername,
+  getUsernameValidationError,
+  normalizeUsername,
+  usernameRegistryId,
+} = require('./usernameUtils');
+
 initializeApp();
 
 const db = getFirestore();
@@ -49,15 +56,27 @@ function normalizeComparableText(value) {
     .replace(/\s+/g, ' ');
 }
 
+function validateOptionalText(value, label, maxLength) {
+  if (value.length > maxLength) {
+    throw new HttpsError(
+      'invalid-argument',
+      `${label} no puede superar los ${maxLength} caracteres.`
+    );
+  }
+}
+
 function validateAccountData({
   username,
   email,
   password,
 }) {
-  if (!username) {
+  const usernameError =
+    getUsernameValidationError(username);
+
+  if (usernameError) {
     throw new HttpsError(
       'invalid-argument',
-      'Ingresá el nombre del usuario.'
+      usernameError
     );
   }
 
@@ -72,6 +91,39 @@ function validateAccountData({
     throw new HttpsError(
       'invalid-argument',
       'La contraseña debe tener al menos 6 caracteres.'
+    );
+  }
+}
+
+function getUsernameRegistryRef(normalizedUsername) {
+  return db
+    .collection('usernames')
+    .doc(usernameRegistryId(normalizedUsername));
+}
+
+function buildUsernameRegistryDocument({
+  uid,
+  username,
+  normalizedUsername,
+  email,
+}) {
+  return {
+    uid,
+    username,
+    normalizedUsername,
+    email,
+    updatedAt: FieldValue.serverTimestamp(),
+  };
+}
+
+function assertUsernameAvailable(snapshot, uid = null) {
+  if (
+    snapshot.exists &&
+    snapshot.data()?.uid !== uid
+  ) {
+    throw new HttpsError(
+      'already-exists',
+      'Ese nombre de usuario ya está en uso.'
     );
   }
 }
@@ -148,6 +200,7 @@ function buildUserDocument({
   return {
     uid,
     username,
+    usernameNormalized: normalizeUsername(username),
     email,
     role,
     active: true,
@@ -397,6 +450,180 @@ async function requireParkingLotManager(
   }
 }
 
+exports.resolveUsernameLogin = onCall(
+  {
+    region: REGION,
+    maxInstances: 5,
+  },
+  async (request) => {
+    const username = cleanUsername(
+      request.data?.username
+    );
+    const usernameError =
+      getUsernameValidationError(username);
+
+    if (usernameError) {
+      throw new HttpsError(
+        'invalid-argument',
+        'Ingresá un usuario válido.'
+      );
+    }
+
+    const normalizedUsername =
+      normalizeUsername(username);
+
+    const registrySnapshot =
+      await getUsernameRegistryRef(
+        normalizedUsername
+      ).get();
+
+    const email = normalizeEmail(
+      registrySnapshot.data()?.email
+    );
+
+    if (!registrySnapshot.exists || !email) {
+      throw new HttpsError(
+        'not-found',
+        'Usuario o contraseña incorrectos.'
+      );
+    }
+
+    return { email };
+  }
+);
+
+exports.syncUsernameRegistry = onCall(
+  {
+    region: REGION,
+    maxInstances: 1,
+  },
+  async (request) => {
+    await requirePlatformAdmin(request);
+
+    const usersSnapshot = await db
+      .collection('users')
+      .limit(201)
+      .get();
+
+    if (usersSnapshot.size > 200) {
+      throw new HttpsError(
+        'failed-precondition',
+        'Hay más de 200 usuarios. La preparación debe hacerse por lotes.'
+      );
+    }
+
+    const entries = [];
+    const conflicts = [];
+    const ownersByUsername = new Map();
+
+    for (const userSnapshot of usersSnapshot.docs) {
+      const userData = userSnapshot.data() || {};
+      const username = cleanUsername(userData.username);
+      const email = normalizeEmail(userData.email);
+      const validationError =
+        getUsernameValidationError(username);
+
+      if (validationError || !email) {
+        conflicts.push({
+          uid: userSnapshot.id,
+          username: username || 'Sin usuario',
+          reason:
+            validationError || 'La cuenta no tiene un email válido.',
+        });
+        continue;
+      }
+
+      const normalizedUsername =
+        normalizeUsername(username);
+      const previousOwner =
+        ownersByUsername.get(normalizedUsername);
+
+      if (previousOwner) {
+        conflicts.push({
+          uid: userSnapshot.id,
+          username,
+          reason: `Está repetido con ${previousOwner.username}.`,
+        });
+        continue;
+      }
+
+      ownersByUsername.set(normalizedUsername, {
+        uid: userSnapshot.id,
+        username,
+      });
+
+      entries.push({
+        uid: userSnapshot.id,
+        username,
+        normalizedUsername,
+        email,
+        userRef: userSnapshot.ref,
+        registryRef:
+          getUsernameRegistryRef(normalizedUsername),
+      });
+    }
+
+    return db.runTransaction(
+      async (transaction) => {
+        const transactionConflicts = [...conflicts];
+        const registrySnapshots = await Promise.all(
+          entries.map((entry) =>
+            transaction.get(entry.registryRef)
+          )
+        );
+
+        registrySnapshots.forEach((snapshot, index) => {
+          const entry = entries[index];
+
+          if (
+            snapshot.exists &&
+            snapshot.data()?.uid !== entry.uid
+          ) {
+            transactionConflicts.push({
+              uid: entry.uid,
+              username: entry.username,
+              reason: 'Ya está reservado por otra cuenta.',
+            });
+          }
+        });
+
+        if (transactionConflicts.length > 0) {
+          return {
+            ok: false,
+            migrated: 0,
+            conflicts: transactionConflicts,
+          };
+        }
+
+        entries.forEach((entry) => {
+          transaction.set(
+            entry.registryRef,
+            buildUsernameRegistryDocument(entry),
+            { merge: true }
+          );
+
+          transaction.set(
+            entry.userRef,
+            {
+              username: entry.username,
+              usernameNormalized:
+                entry.normalizedUsername,
+              updatedAt: FieldValue.serverTimestamp(),
+            },
+            { merge: true }
+          );
+        });
+
+        return {
+          ok: true,
+          migrated: entries.length,
+          conflicts: [],
+        };
+      }
+    );
+  }
+);
+
 exports.pingPlatform = onCall(
   {
     region: REGION,
@@ -438,8 +665,13 @@ exports.createParkingLotWithAdmin = onCall(
       cleanText(data.timezone) ||
       'America/Argentina/Buenos_Aires';
 
+    const primaryAdminName =
+      cleanText(data.primaryAdminName);
+
+    const contact = cleanText(data.contact);
+
     const adminUsername =
-      cleanText(data.adminUsername);
+      cleanUsername(data.adminUsername);
 
     const adminEmail =
       normalizeEmail(data.adminEmail);
@@ -482,11 +714,26 @@ exports.createParkingLotWithAdmin = onCall(
       );
     }
 
+    validateOptionalText(
+      primaryAdminName,
+      'El administrador principal',
+      100
+    );
+
+    validateOptionalText(
+      contact,
+      'El contacto',
+      160
+    );
+
     validateAccountData({
       username: adminUsername,
       email: adminEmail,
       password: adminPassword,
     });
+
+    const adminUsernameNormalized =
+      normalizeUsername(adminUsername);
 
     const parkingLotRef = db
       .collection('parkingLots')
@@ -518,11 +765,19 @@ exports.createParkingLotWithAdmin = onCall(
       .collection('users')
       .doc(createdAuthUser.uid);
 
+    const adminUsernameRef =
+      getUsernameRegistryRef(
+        adminUsernameNormalized
+      );
+
     try {
       await db.runTransaction(
         async (transaction) => {
           const currentParkingLot =
             await transaction.get(parkingLotRef);
+
+          const currentUsername =
+            await transaction.get(adminUsernameRef);
 
           if (currentParkingLot.exists) {
             throw new HttpsError(
@@ -531,11 +786,18 @@ exports.createParkingLotWithAdmin = onCall(
             );
           }
 
+          assertUsernameAvailable(
+            currentUsername,
+            createdAuthUser.uid
+          );
+
           transaction.set(parkingLotRef, {
             name,
             code,
             address,
             timezone,
+            primaryAdminName,
+            contact,
             active: true,
 
             createdAt:
@@ -570,6 +832,17 @@ exports.createParkingLotWithAdmin = onCall(
               creator: platformAdmin,
             })
           );
+
+          transaction.set(
+            adminUsernameRef,
+            buildUsernameRegistryDocument({
+              uid: createdAuthUser.uid,
+              username: adminUsername,
+              normalizedUsername:
+                adminUsernameNormalized,
+              email: adminEmail,
+            })
+          );
         }
       );
     } catch (error) {
@@ -599,6 +872,8 @@ exports.createParkingLotWithAdmin = onCall(
         id: parkingLotId,
         name,
         code,
+        primaryAdminName,
+        contact,
       },
 
       admin: {
@@ -638,6 +913,11 @@ exports.updateParkingLot = onCall(
     const timezone =
       cleanText(data.timezone);
 
+    const primaryAdminName =
+      cleanText(data.primaryAdminName);
+
+    const contact = cleanText(data.contact);
+
     if (!parkingLotId) {
       throw new HttpsError(
         'invalid-argument',
@@ -666,6 +946,18 @@ exports.updateParkingLot = onCall(
       );
     }
 
+    validateOptionalText(
+      primaryAdminName,
+      'El administrador principal',
+      100
+    );
+
+    validateOptionalText(
+      contact,
+      'El contacto',
+      160
+    );
+
     const parkingLotRef = db
       .collection('parkingLots')
       .doc(parkingLotId);
@@ -693,6 +985,8 @@ exports.updateParkingLot = onCall(
           code,
           address,
           timezone,
+          primaryAdminName,
+          contact,
 
           updatedAt:
             FieldValue.serverTimestamp(),
@@ -731,6 +1025,8 @@ exports.updateParkingLot = onCall(
         code,
         address,
         timezone,
+        primaryAdminName,
+        contact,
       },
     };
   }
@@ -815,7 +1111,7 @@ exports.createParkingLotUser = onCall(
         );
 
     const username =
-      cleanText(data.username);
+      cleanUsername(data.username);
 
     const email =
       normalizeEmail(data.email);
@@ -831,6 +1127,9 @@ exports.createParkingLotUser = onCall(
       email,
       password,
     });
+
+    const usernameNormalized =
+      normalizeUsername(username);
 
     if (!PARKING_LOT_ROLES.includes(role)) {
       throw new HttpsError(
@@ -850,17 +1149,44 @@ exports.createParkingLotUser = onCall(
       .collection('users')
       .doc(createdAuthUser.uid);
 
+    const usernameRef =
+      getUsernameRegistryRef(usernameNormalized);
+
     try {
-      await userRef.set(
-        buildUserDocument({
-          uid: createdAuthUser.uid,
-          username,
-          email,
-          role,
-          parkingLotId:
-          parkingLotManager.parkingLotId,
-          creator: parkingLotManager,
-        })
+      await db.runTransaction(
+        async (transaction) => {
+          const currentUsername =
+            await transaction.get(usernameRef);
+
+          assertUsernameAvailable(
+            currentUsername,
+            createdAuthUser.uid
+          );
+
+          transaction.set(
+            userRef,
+            buildUserDocument({
+              uid: createdAuthUser.uid,
+              username,
+              email,
+              role,
+              parkingLotId:
+                parkingLotManager.parkingLotId,
+              creator: parkingLotManager,
+            })
+          );
+
+          transaction.set(
+            usernameRef,
+            buildUsernameRegistryDocument({
+              uid: createdAuthUser.uid,
+              username,
+              normalizedUsername:
+                usernameNormalized,
+              email,
+            })
+          );
+        }
       );
     } catch (error) {
       console.error(
@@ -871,6 +1197,10 @@ exports.createParkingLotUser = onCall(
       await rollbackAuthUser(
         createdAuthUser.uid
       );
+
+      if (error instanceof HttpsError) {
+        throw error;
+      }
 
       throw new HttpsError(
         'internal',
