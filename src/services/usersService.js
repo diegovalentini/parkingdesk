@@ -14,6 +14,60 @@ const ALLOWED_ROLES = [
   'admin',
 ];
 
+function callableErrorMessage(error, fallback) {
+  return (
+    error?.details ||
+    error?.message ||
+    fallback
+  );
+}
+
+export async function getUsernameMigrationStatus() {
+  const callable = functions.httpsCallable(
+    'getUsernameMigrationStatus'
+  );
+
+  try {
+    const response = await callable();
+    return response.data;
+  } catch (error) {
+    console.error(
+      'Error comprobando usernames existentes:',
+      error
+    );
+
+    throw new Error(
+      callableErrorMessage(
+        error,
+        'No se pudo comprobar el estado de los usernames.'
+      )
+    );
+  }
+}
+
+export async function syncUsernameRegistry() {
+  const callable = functions.httpsCallable(
+    'syncUsernameRegistry'
+  );
+
+  try {
+    const response = await callable();
+    return response.data;
+  } catch (error) {
+    console.error(
+      'Error preparando usernames existentes:',
+      error
+    );
+
+    throw new Error(
+      callableErrorMessage(
+        error,
+        'No se pudieron preparar los usuarios existentes.'
+      )
+    );
+  }
+}
+
 export async function createParkingLotUser({
   username,
   email,

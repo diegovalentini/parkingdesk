@@ -493,75 +493,174 @@ exports.resolveUsernameLogin = onCall(
   }
 );
 
-exports.syncUsernameRegistry = onCall(
+async function inspectUsernameRegistry() {
+  const usersSnapshot = await db
+    .collection('users')
+    .limit(201)
+    .get();
+
+  if (usersSnapshot.size > 200) {
+    throw new HttpsError(
+      'failed-precondition',
+      'Hay más de 200 usuarios. La preparación debe hacerse por lotes.'
+    );
+  }
+
+  const entries = [];
+  const conflicts = [];
+  const ownersByUsername = new Map();
+
+  for (const userSnapshot of usersSnapshot.docs) {
+    const userData = userSnapshot.data() || {};
+    const username = cleanUsername(userData.username);
+    const email = normalizeEmail(userData.email);
+    const validationError =
+      getUsernameValidationError(username);
+
+    if (validationError || !email) {
+      conflicts.push({
+        uid: userSnapshot.id,
+        username: username || 'Sin usuario',
+        reason:
+          validationError || 'La cuenta no tiene un email válido.',
+      });
+      continue;
+    }
+
+    const normalizedUsername =
+      normalizeUsername(username);
+    const previousOwner =
+      ownersByUsername.get(normalizedUsername);
+
+    if (previousOwner) {
+      conflicts.push({
+        uid: userSnapshot.id,
+        username,
+        reason: `Está repetido con ${previousOwner.username}.`,
+      });
+      continue;
+    }
+
+    ownersByUsername.set(normalizedUsername, {
+      uid: userSnapshot.id,
+      username,
+    });
+
+    entries.push({
+      uid: userSnapshot.id,
+      username,
+      normalizedUsername,
+      email,
+      profileUsernameNormalized:
+        userData.usernameNormalized || '',
+      userRef: userSnapshot.ref,
+      registryRef:
+        getUsernameRegistryRef(normalizedUsername),
+    });
+  }
+
+  const registrySnapshots = await Promise.all(
+    entries.map((entry) => entry.registryRef.get())
+  );
+
+  let pending = 0;
+
+  registrySnapshots.forEach((snapshot, index) => {
+    const entry = entries[index];
+    const registryData = snapshot.data() || {};
+
+    if (
+      snapshot.exists &&
+      registryData.uid !== entry.uid
+    ) {
+      conflicts.push({
+        uid: entry.uid,
+        username: entry.username,
+        reason: 'Ya está reservado por otra cuenta.',
+      });
+      return;
+    }
+
+    const registryIsCurrent =
+      snapshot.exists &&
+      registryData.uid === entry.uid &&
+      normalizeEmail(registryData.email) === entry.email &&
+      registryData.normalizedUsername ===
+        entry.normalizedUsername;
+
+    const profileIsCurrent =
+      entry.profileUsernameNormalized ===
+        entry.normalizedUsername;
+
+    if (!registryIsCurrent || !profileIsCurrent) {
+      pending += 1;
+    }
+  });
+
+  return {
+    entries,
+    conflicts,
+    pending,
+    total: usersSnapshot.size,
+  };
+}
+
+exports.getUsernameMigrationStatus = onCall(
   {
     region: REGION,
-    maxInstances: 1,
+    maxInstances: 2,
+    enforceAppCheck: true,
   },
   async (request) => {
     await requirePlatformAdmin(request);
 
-    const usersSnapshot = await db
-      .collection('users')
-      .limit(201)
-      .get();
+    const inspection =
+      await inspectUsernameRegistry();
 
-    if (usersSnapshot.size > 200) {
-      throw new HttpsError(
-        'failed-precondition',
-        'Hay más de 200 usuarios. La preparación debe hacerse por lotes.'
-      );
+    return {
+      ok: inspection.conflicts.length === 0,
+      needed:
+        inspection.conflicts.length === 0 &&
+        inspection.pending > 0,
+      pending: inspection.pending,
+      total: inspection.total,
+      conflicts: inspection.conflicts,
+    };
+  }
+);
+
+exports.syncUsernameRegistry = onCall(
+  {
+    region: REGION,
+    maxInstances: 1,
+    enforceAppCheck: true,
+  },
+  async (request) => {
+    await requirePlatformAdmin(request);
+
+    const inspection =
+      await inspectUsernameRegistry();
+
+    const {
+      entries,
+      conflicts,
+      pending,
+    } = inspection;
+
+    if (conflicts.length > 0) {
+      return {
+        ok: false,
+        migrated: 0,
+        conflicts,
+      };
     }
 
-    const entries = [];
-    const conflicts = [];
-    const ownersByUsername = new Map();
-
-    for (const userSnapshot of usersSnapshot.docs) {
-      const userData = userSnapshot.data() || {};
-      const username = cleanUsername(userData.username);
-      const email = normalizeEmail(userData.email);
-      const validationError =
-        getUsernameValidationError(username);
-
-      if (validationError || !email) {
-        conflicts.push({
-          uid: userSnapshot.id,
-          username: username || 'Sin usuario',
-          reason:
-            validationError || 'La cuenta no tiene un email válido.',
-        });
-        continue;
-      }
-
-      const normalizedUsername =
-        normalizeUsername(username);
-      const previousOwner =
-        ownersByUsername.get(normalizedUsername);
-
-      if (previousOwner) {
-        conflicts.push({
-          uid: userSnapshot.id,
-          username,
-          reason: `Está repetido con ${previousOwner.username}.`,
-        });
-        continue;
-      }
-
-      ownersByUsername.set(normalizedUsername, {
-        uid: userSnapshot.id,
-        username,
-      });
-
-      entries.push({
-        uid: userSnapshot.id,
-        username,
-        normalizedUsername,
-        email,
-        userRef: userSnapshot.ref,
-        registryRef:
-          getUsernameRegistryRef(normalizedUsername),
-      });
+    if (pending === 0) {
+      return {
+        ok: true,
+        migrated: 0,
+        conflicts: [],
+      };
     }
 
     return db.runTransaction(
@@ -617,7 +716,7 @@ exports.syncUsernameRegistry = onCall(
 
         return {
           ok: true,
-          migrated: entries.length,
+          migrated: pending,
           conflicts: [],
         };
       }

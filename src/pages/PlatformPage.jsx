@@ -8,6 +8,10 @@ import {
   setParkingLotActive,
   updateParkingLot,
 } from '../services/parkingLotsService';
+import {
+  getUsernameMigrationStatus,
+  syncUsernameRegistry,
+} from '../services/usersService';
 
 const DEFAULT_TIMEZONE = 'America/Argentina/Buenos_Aires';
 
@@ -81,6 +85,15 @@ function normalizeSearchText(value) {
     .replace(/[\u0300-\u036f]/g, '');
 }
 
+function formatUsernameConflicts(conflicts) {
+  return (conflicts || [])
+    .map(
+      (item) =>
+        `${item.username}: ${item.reason}`
+    )
+    .join(' | ');
+}
+
 export default function PlatformPage() {
   const {
   user,
@@ -112,6 +125,14 @@ export default function PlatformPage() {
     useState(null);
 
   const [successMessage, setSuccessMessage] = useState('');
+  const [usernameMigrationNeeded, setUsernameMigrationNeeded] =
+    useState(false);
+  const [checkingUsernames, setCheckingUsernames] =
+    useState(true);
+  const [migratingUsernames, setMigratingUsernames] =
+    useState(false);
+  const [usernameMigrationError, setUsernameMigrationError] =
+    useState('');
 
   const normalizedSearchTerm =
     normalizeSearchText(searchTerm);
@@ -146,6 +167,61 @@ export default function PlatformPage() {
   useEffect(() => {
     loadParkingLots();
   }, [loadParkingLots]);
+
+  useEffect(() => {
+    let active = true;
+
+    async function loadUsernameMigrationStatus() {
+      setCheckingUsernames(true);
+      setUsernameMigrationError('');
+
+      try {
+        const result =
+          await getUsernameMigrationStatus();
+
+        if (!active) {
+          return;
+        }
+
+        if (!result?.ok) {
+          setUsernameMigrationNeeded(false);
+          setUsernameMigrationError(
+            formatUsernameConflicts(result?.conflicts) ||
+              'Hay usernames que necesitan revisión.'
+          );
+          return;
+        }
+
+        setUsernameMigrationNeeded(
+          Boolean(result.needed)
+        );
+      } catch (migrationStatusError) {
+        if (!active) {
+          return;
+        }
+
+        console.error(
+          'Error comprobando usernames:',
+          migrationStatusError
+        );
+
+        setUsernameMigrationError(
+          migrationStatusError?.message ||
+            'No se pudo comprobar el estado de los usernames.'
+        );
+      } finally {
+        if (active) {
+          setCheckingUsernames(false);
+        }
+      }
+    }
+
+    loadUsernameMigrationStatus();
+
+    return () => {
+      active = false;
+    };
+  }, [user?.uid]);
 
   function handleCreateInputChange(event) {
     const { name, value } = event.target;
@@ -431,6 +507,51 @@ export default function PlatformPage() {
   }
 }
 
+  async function handlePrepareUsernames() {
+    const confirmed = window.confirm(
+      'Se comprobarán y registrarán los usernames antiguos. Si existe algún conflicto, no se modificará ninguna cuenta. ¿Querés continuar?'
+    );
+
+    if (!confirmed) {
+      return;
+    }
+
+    setMigratingUsernames(true);
+    setUsernameMigrationError('');
+    setSuccessMessage('');
+
+    try {
+      const result = await syncUsernameRegistry();
+
+      if (!result?.ok) {
+        setUsernameMigrationError(
+          formatUsernameConflicts(result?.conflicts) ||
+            'Hay usernames que necesitan revisión.'
+        );
+        return;
+      }
+
+      setUsernameMigrationNeeded(false);
+      setSuccessMessage(
+        result.migrated > 0
+          ? `${result.migrated} usuarios quedaron preparados correctamente.`
+          : 'Todos los usuarios ya estaban preparados.'
+      );
+    } catch (migrationError) {
+      console.error(
+        'Error preparando usernames:',
+        migrationError
+      );
+
+      setUsernameMigrationError(
+        migrationError?.message ||
+          'No se pudieron preparar los usuarios.'
+      );
+    } finally {
+      setMigratingUsernames(false);
+    }
+  }
+
   return (
 <main className="layout platform-page">
   <section className="panel platform-shell">
@@ -449,6 +570,19 @@ export default function PlatformPage() {
       </div>
 
       <div className="platform-toolbar">
+        {!checkingUsernames && usernameMigrationNeeded && (
+          <button
+            type="button"
+            className="platform-secondary-button"
+            onClick={handlePrepareUsernames}
+            disabled={migratingUsernames}
+          >
+            {migratingUsernames
+              ? 'Preparando...'
+              : 'Preparar usuarios'}
+          </button>
+        )}
+
         <button
           className="platform-primary-button"
             type="button"
@@ -480,6 +614,12 @@ export default function PlatformPage() {
         {successMessage && (
           <p className="platform-success-message">
             {successMessage}
+          </p>
+        )}
+
+        {usernameMigrationError && (
+          <p className="error-message">
+            {usernameMigrationError}
           </p>
         )}
 
