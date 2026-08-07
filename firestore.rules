@@ -64,7 +64,7 @@ service cloud.firestore {
       return isPlatformAdmin()
         || belongsToParkingLot(parkingLotId);
     }
-    
+
     function canOperateParkingLot(parkingLotId) {
       return isPlatformAdmin()
         || (
@@ -72,7 +72,7 @@ service cloud.firestore {
           && belongsToParkingLot(parkingLotId)
         );
     }
-    
+
     function canAdminParkingLot(parkingLotId) {
       return isPlatformAdmin()
         || (
@@ -158,7 +158,7 @@ service cloud.firestore {
       allow create, update, delete: if
         canAdminParkingLot(parkingLotId);
     }
-    
+
     match /parkingLots/{parkingLotId}/settings/{docId} {
       allow read: if canReadParkingLot(parkingLotId);
 

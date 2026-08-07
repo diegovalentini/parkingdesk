@@ -264,18 +264,18 @@ const exitParkingLotAsPlatform = useCallback(() => {
       login,
       resetPassword,
       logout,
-    
+
       parkingLotId: effectiveParkingLotId,
       userParkingLotId:
         getUserParkingLotId(user),
-    
+
       isPlatformAdmin: hasPlatformAccess,
       isInspectingParkingLot:
         hasPlatformAccess &&
         Boolean(platformParkingLotId),
-    
+
       platformParkingLotId,
-    
+
       enterParkingLotAsPlatform,
       exitParkingLotAsPlatform,
     };

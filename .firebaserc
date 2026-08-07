@@ -14,7 +14,7 @@
     },
     "estacion-azul-web": {
       "hosting": {
-        "parkingdeskdev": [
+        "parkingdeskprod": [
           "parkingdesk"
         ]
       }

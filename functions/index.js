@@ -1203,7 +1203,7 @@ exports.createParkingLotUser = onCall(
   },
     async (request) => {
       const data = request.data || {};
-    
+
       const parkingLotManager =
         await requireParkingLotManager(
           request,

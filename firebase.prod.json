@@ -1,0 +1,17 @@
+{
+  "hosting": {
+    "target": "parkingdeskprod",
+    "public": "dist",
+    "ignore": [
+      "firebase.prod.json",
+      "**/.*",
+      "**/node_modules/**"
+    ],
+    "rewrites": [
+      {
+        "source": "**",
+        "destination": "/index.html"
+      }
+    ]
+  }
+}
