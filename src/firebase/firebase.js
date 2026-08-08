@@ -27,12 +27,25 @@ function validateFirebaseEnvironment() {
     hostname === 'estacion-azul-web-dev.web.app' ||
     hostname === 'estacion-azul-web-dev.firebaseapp.com';
 
+  const isProdHosting =
+    hostname === 'parkingdesk.web.app' ||
+    hostname === 'parkingdesk.firebaseapp.com';
+
   if (
     (isLocalhost || isDevHosting) &&
     projectId !== 'estacion-azul-web-dev'
   ) {
     throw new Error(
       `Configuración peligrosa bloqueada: ${hostname} está intentando conectarse al proyecto ${projectId}.`
+    );
+  }
+
+  if (
+    isProdHosting &&
+    projectId !== 'estacion-azul-web'
+  ) {
+    throw new Error(
+      `Firebase project mismatch for ${hostname}: ${projectId}.`
     );
   }
 }
