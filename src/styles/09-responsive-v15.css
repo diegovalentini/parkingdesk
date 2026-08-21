@@ -1,4 +1,32 @@
 /* v15.5: ajustes responsive sin tocar lógica */
+@media (max-height: 800px) {
+  .modal__panel {
+    max-height: calc(100vh - 24px);
+    max-height: calc(100dvh - 24px);
+    margin: 12px auto;
+    overflow-y: auto;
+    scrollbar-color: rgba(148, 163, 184, 0.38) transparent;
+    scrollbar-width: thin;
+  }
+
+  .modal__panel::-webkit-scrollbar {
+    width: 5px;
+  }
+
+  .modal__panel::-webkit-scrollbar-track {
+    background: transparent;
+  }
+
+  .modal__panel::-webkit-scrollbar-thumb {
+    background: rgba(148, 163, 184, 0.38);
+    border-radius: 999px;
+  }
+
+  .modal__panel::-webkit-scrollbar-thumb:hover {
+    background: rgba(148, 163, 184, 0.62);
+  }
+}
+
 @media (max-width: 780px) {
   .layout {
     width: min(100% - 24px, 560px);
@@ -186,4 +214,3 @@
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 }
-

@@ -118,7 +118,7 @@
 }
 
 .calendar-day.has-logs.is-today::after {
-  bottom: 36px;
+  bottom: 42px;
 }
 
 .calendar-day.is-selected {

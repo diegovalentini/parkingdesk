@@ -30,6 +30,8 @@ Thumbs.db
 
 # Credenciales privadas de migración
 migration/credentials/
+migration/ayacucho/credentials/
+migration/ayacucho/reports/
 
 # Caché de Firebase
 .firebase/
@@ -39,3 +41,12 @@ backups/
 
 # Dependencias de Functions
 functions/node_modules/
+
+
+# firebase debugs
+firestore-debug.log
+firebase-debug.log
+firebase-debug.*.log
+
+# Scripts temporales de migración
+functions/scripts/

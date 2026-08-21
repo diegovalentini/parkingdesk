@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
 import Topbar from '../components/Topbar';
@@ -199,6 +199,197 @@ function Kpi({ label, value, cls = '' }) {
   );
 }
 
+const RANGE_WEEKDAYS = ['L', 'M', 'X', 'J', 'V', 'S', 'D'];
+
+function getCalendarDays(monthDate) {
+  const firstDay = new Date(monthDate.getFullYear(), monthDate.getMonth(), 1, 12);
+  const mondayOffset = (firstDay.getDay() + 6) % 7;
+  const gridStart = addDays(firstDay, -mondayOffset);
+
+  return Array.from({ length: 42 }, (_, index) => addDays(gridStart, index));
+}
+
+function formatMonthLabel(date) {
+  const label = date.toLocaleDateString('es-AR', {
+    month: 'long',
+    year: 'numeric',
+  });
+
+  return label.charAt(0).toUpperCase() + label.slice(1);
+}
+
+function RangeDatePicker({ start, end, onStartChange, onEndChange }) {
+  const pickerRef = useRef(null);
+  const [open, setOpen] = useState(false);
+  const [selectionStep, setSelectionStep] = useState('start');
+  const [viewMonth, setViewMonth] = useState(() => {
+    const initialDate = parseDateInput(start) || new Date();
+    return new Date(initialDate.getFullYear(), initialDate.getMonth(), 1, 12);
+  });
+
+  useEffect(() => {
+    if (!open) return undefined;
+
+    function handlePointerDown(event) {
+      if (!pickerRef.current?.contains(event.target)) {
+        setOpen(false);
+      }
+    }
+
+    function handleKeyDown(event) {
+      if (event.key === 'Escape') {
+        setOpen(false);
+      }
+    }
+
+    document.addEventListener('mousedown', handlePointerDown);
+    document.addEventListener('keydown', handleKeyDown);
+
+    return () => {
+      document.removeEventListener('mousedown', handlePointerDown);
+      document.removeEventListener('keydown', handleKeyDown);
+    };
+  }, [open]);
+
+  const days = getCalendarDays(viewMonth);
+  const todayKey = toDateKey(new Date());
+
+  function openPicker(step) {
+    const selectedDate = parseDateInput(step === 'end' ? end : start)
+      || parseDateInput(start)
+      || new Date();
+
+    setSelectionStep(step);
+    setViewMonth(new Date(selectedDate.getFullYear(), selectedDate.getMonth(), 1, 12));
+    setOpen(true);
+  }
+
+  function selectDay(date) {
+    const dateKey = toDateKey(date);
+
+    if (selectionStep === 'start') {
+      onStartChange(dateKey);
+      onEndChange('');
+      setSelectionStep('end');
+      return;
+    }
+
+    if (!start || dateKey < start) {
+      onStartChange(dateKey);
+      onEndChange('');
+      setSelectionStep('end');
+      return;
+    }
+
+    onEndChange(dateKey);
+    setOpen(false);
+  }
+
+  function clearRange() {
+    onStartChange('');
+    onEndChange('');
+    setSelectionStep('start');
+  }
+
+  return (
+    <div className="monthly-range-picker" ref={pickerRef}>
+      <div className="monthly-range-fields">
+        <button
+          className={`monthly-date-field${open && selectionStep === 'start' ? ' is-active' : ''}`}
+          type="button"
+          onClick={() => openPicker('start')}
+          aria-expanded={open && selectionStep === 'start'}
+        >
+          <span>Desde</span>
+          <strong>{start ? formatShortDate(parseDateInput(start)) : 'Elegir fecha'}</strong>
+          <i aria-hidden="true">▣</i>
+        </button>
+
+        <button
+          className={`monthly-date-field${open && selectionStep === 'end' ? ' is-active' : ''}`}
+          type="button"
+          onClick={() => openPicker('end')}
+          aria-expanded={open && selectionStep === 'end'}
+        >
+          <span>Hasta</span>
+          <strong>{end ? formatShortDate(parseDateInput(end)) : 'Elegir fecha'}</strong>
+          <i aria-hidden="true">▣</i>
+        </button>
+      </div>
+
+      {open ? (
+        <section className="monthly-range-calendar" role="dialog" aria-label="Elegir rango de fechas">
+          <header className="monthly-calendar-head">
+            <button
+              type="button"
+              onClick={() => setViewMonth((current) => new Date(
+                current.getFullYear(), current.getMonth() - 1, 1, 12
+              ))}
+              aria-label="Mes anterior"
+            >
+              ←
+            </button>
+            <strong>{formatMonthLabel(viewMonth)}</strong>
+            <button
+              type="button"
+              onClick={() => setViewMonth((current) => new Date(
+                current.getFullYear(), current.getMonth() + 1, 1, 12
+              ))}
+              aria-label="Mes siguiente"
+            >
+              →
+            </button>
+          </header>
+
+          <div className="monthly-calendar-weekdays" aria-hidden="true">
+            {RANGE_WEEKDAYS.map((weekday) => <span key={weekday}>{weekday}</span>)}
+          </div>
+
+          <div className="monthly-calendar-days">
+            {days.map((date) => {
+              const dateKey = toDateKey(date);
+              const isOutside = date.getMonth() !== viewMonth.getMonth();
+              const isStart = dateKey === start;
+              const isEnd = dateKey === end;
+              const isInRange = Boolean(start && end && dateKey > start && dateKey < end);
+              const classes = [
+                'monthly-calendar-day',
+                isOutside ? 'is-outside' : '',
+                dateKey === todayKey ? 'is-today' : '',
+                isInRange ? 'is-in-range' : '',
+                isStart || isEnd ? 'is-selected' : '',
+              ].filter(Boolean).join(' ');
+
+              return (
+                <button
+                  className={classes}
+                  type="button"
+                  key={dateKey}
+                  onClick={() => selectDay(date)}
+                  aria-label={formatShortDate(date)}
+                  aria-pressed={isStart || isEnd}
+                >
+                  {date.getDate()}
+                </button>
+              );
+            })}
+          </div>
+
+          <footer className="monthly-calendar-footer">
+            <span>
+              {selectionStep === 'start' ? 'Elegí la fecha inicial' : 'Ahora elegí la fecha final'}
+            </span>
+            <div>
+              <button type="button" onClick={clearRange}>Limpiar</button>
+              <button type="button" onClick={() => selectDay(new Date())}>Hoy</button>
+            </div>
+          </footer>
+        </section>
+      ) : null}
+    </div>
+  );
+}
+
 export default function MonthlyReportPage() {
   const { showToast } = useToast();
   const { parkingLotId } = useAuth();
@@ -347,25 +538,12 @@ export default function MonthlyReportPage() {
           </div>
 
           <form className="monthly-range-form" onSubmit={generatePreview}>
-            <label className="form-field">
-              <span>Desde</span>
-              <input
-                value={start}
-                onChange={(event) => setStart(event.target.value)}
-                type="date"
-                required
-              />
-            </label>
-
-            <label className="form-field">
-              <span>Hasta</span>
-              <input
-                value={end}
-                onChange={(event) => setEnd(event.target.value)}
-                type="date"
-                required
-              />
-            </label>
+            <RangeDatePicker
+              start={start}
+              end={end}
+              onStartChange={setStart}
+              onEndChange={setEnd}
+            />
 
             <div className="monthly-range-actions">
               <button className="primary-btn" type="submit" disabled={loading}>
