@@ -1,52 +1,105 @@
-# Dependencias
-node_modules/
+# ==============================
+# DEPENDENCIAS
+# ==============================
 
-# Builds
+node_modules/
+functions/node_modules/
+
+
+# ==============================
+# BUILDS
+# ==============================
+
 dist/
 build/
 
-# Variables de entorno locales
+
+# ==============================
+# VARIABLES DE ENTORNO
+# ==============================
+
 .env
 .env.local
 .env.*.local
+.env.production
+.env.development
+.env.staging
 
-# Credenciales privadas
+
+# ==============================
+# CREDENCIALES / SECRETOS
+# ==============================
+
 serviceAccountKey.json
 service-account.json
+*service-account*.json
+*serviceAccount*.json
+*credentials*.json
+
 *.pem
 *.key
+*.p12
+*.pfx
+*.crt
 
-# Logs
+google-credentials.json
+application_default_credentials.json
+
+
+# ==============================
+# MIGRACIONES / BACKUPS
+# ==============================
+
+migration/credentials/
+migration/**/credentials/
+migration/**/reports/
+migration/**/backups/
+
+backups/
+exports/
+
+*.backup
+*.bak
+
+functions/scripts/
+
+
+# ==============================
+# FIREBASE
+# ==============================
+
+.firebase/
+
+firebase-debug.log
+firebase-debug.*.log
+firestore-debug.log
+ui-debug.log
+
+
+# ==============================
+# LOGS
+# ==============================
+
+*.log
 npm-debug.log*
 yarn-debug.log*
 yarn-error.log*
 pnpm-debug.log*
 
-# Editores y sistema
+
+# ==============================
+# EDITORES / SISTEMA
+# ==============================
+
 .vscode/
 .idea/
+
 .DS_Store
 Thumbs.db
 
-# Credenciales privadas de migración
-migration/credentials/
-migration/ayacucho/credentials/
-migration/ayacucho/reports/
 
-# Caché de Firebase
-.firebase/
+# ==============================
+# DOCUMENTACIÓN INTERNA
+# ==============================
 
-# Backups locales
-backups/
-
-# Dependencias de Functions
-functions/node_modules/
-
-
-# firebase debugs
-firestore-debug.log
-firebase-debug.log
-firebase-debug.*.log
-
-# Scripts temporales de migración
-functions/scripts/
+PRODUCTION_RELEASE_CHECKLIST.md
